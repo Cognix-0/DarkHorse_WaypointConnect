@@ -1,12 +1,27 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
+import { ZodError } from 'zod';
 import { authRoutes } from './routes/auth.ts';
+import { dispatchRoutes } from './routes/dispatch.ts';
+import { insightRoutes } from './routes/insights.ts';
+import { liveRoutes } from './routes/live.ts';
+import { HttpError } from './plans.ts';
 import { prisma } from './db.ts';
 
 const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
 await app.register(cors, { origin: true });
 await app.register(jwt, { secret: process.env.JWT_SECRET ?? 'dev-only-secret-change-me' });
+
+// One error shape for the web app: { error: "plain sentence", ...details }
+app.setErrorHandler((err, _req, reply) => {
+  if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message, ...err.extra });
+  if (err instanceof ZodError || (err as { name?: string }).name === 'ZodError') return reply.code(400).send({ error: (err as ZodError).issues.map((i) => `${i.path.join('.') || 'body'}: ${i.message}`).join('; ') });
+  app.log.error(err);
+  const error = err as { statusCode?: number; message?: string };
+  const status = error.statusCode ?? 500;
+  return reply.code(status).send({ error: status === 500 ? 'Something went wrong on the server. Try again.' : error.message ?? 'Request failed' });
+});
 
 // Every route lives under /api (Caddy forwards /api/* here).
 await app.register(async (api) => {
@@ -15,7 +30,10 @@ await app.register(async (api) => {
     return { ok: true, at: new Date().toISOString() };
   });
   await api.register(authRoutes);
-  // Part 2 registers: orders, plans, loader, driver, sync, store, events.
+  await api.register(dispatchRoutes);
+  await api.register(liveRoutes);
+  await api.register(insightRoutes);
+  // Part 3 registers: loader, driver, sync. Part 4: store.
 }, { prefix: '/api' });
 
 const port = Number(process.env.API_PORT ?? 3000);

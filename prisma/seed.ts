@@ -61,8 +61,12 @@ async function main() {
     const scen = csv('task2b_peak_day_scenarios.csv').filter((r) => r.scenario === 'S1');
     const placedAt = new Date(`${day(DEMO_DATE, -1).toISOString().slice(0, 10)}T09:30:00.000Z`); // 15:00 Colombo, before the cutoff
     for (const r of scen) {
+      // An outlet with two orders (chilled + ambient) keeps its most recent delivery date.
       const lastServed = day(DEMO_DATE, -Number(r.days_since_last_served ?? 1));
-      await prisma.outlet.update({ where: { id: r.outlet_id! }, data: { lastServedOn: lastServed } });
+      const outlet = await prisma.outlet.findUnique({ where: { id: r.outlet_id! } });
+      if (!outlet?.lastServedOn || outlet.lastServedOn < lastServed || outlet.lastServedOn >= demo) {
+        await prisma.outlet.update({ where: { id: r.outlet_id! }, data: { lastServedOn: lastServed } });
+      }
       await prisma.order.create({
         data: {
           outletId: r.outlet_id!, deliveryDate: demo, temp: r.temp_requirement as Temp, units: Number(r.order_units),
@@ -81,6 +85,13 @@ async function main() {
           data: { orderId: prev.id, reason: r.temp_requirement === 'chilled' ? 'no_reefer_capacity' : 'vehicle_full', type: 'unavoidable', newDate: demo, detail: 'Seeded history' },
         });
       }
+    }
+    // Three orders that arrived after the 16:00 cutoff: they go on the next run, and the queue shows them greyed out.
+    const late = new Date(`${day(DEMO_DATE, -1).toISOString().slice(0, 10)}T10:50:00.000Z`); // 16:20 Colombo
+    const nextRun = day(DEMO_DATE, 1);
+    for (const [outletId, temp, units, kg, m3] of [['OUT014', 'ambient', 30, 276.0, 1.5], ['OUT047', 'ambient', 12, 180.4, 1.1], ['OUT061', 'chilled', 22, 154.2, 0.8]] as const) {
+      if (!(await prisma.outlet.findUnique({ where: { id: outletId } }))) continue;
+      await prisma.order.create({ data: { outletId, deliveryDate: nextRun, temp, units, weightKg: kg, volumeM3: m3, status: 'placed', placedAt: late, note: 'Received after the 16:00 cutoff' } });
     }
     for (const r of csv('task2b_peak_day_fleet.csv').filter((f) => f.scenario === 'S1' && f.status === 'in_workshop')) {
       await prisma.vehicleDayStatus.upsert({

@@ -183,8 +183,11 @@ model Plan {
   date        DateTime   @db.Date
   depot       Depot
   status      PlanStatus @default(draft)
-  version     Int        @default(1)
+  /// 0 until first published; +1 on every re-publish (drivers refetch when it changes)
+  version     Int        @default(0)
   publishedAt DateTime?
+  /// recovery options taken on the Deferral Review screen, e.g. {"B":"requested"}
+  options     Json       @default("{}")
   trips       Trip[]
   deferrals   Deferral[]
 
@@ -232,6 +235,8 @@ model Deferral {
   detail    String?
   newDate   DateTime       @db.Date
   byUserId  String?
+  /// second deferrals (outlet also skipped on the last run) need an explicit confirmation before publishing
+  confirmedAt DateTime?
   createdAt DateTime       @default(now())
   order     Order          @relation(fields: [orderId], references: [id])
   plan      Plan?          @relation(fields: [planId], references: [id])
@@ -286,10 +291,14 @@ model Notification {
   outletId  String?
   userId    String?
   kind      String
+  title     String?
   message   String
   refs      Json     @default("{}")
   read      Boolean  @default(false)
+  /// the dispatcher acted on this alert
+  done      Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([outletId, read])
+  @@index([role, createdAt])
 }
