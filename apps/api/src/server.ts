@@ -6,10 +6,14 @@ import { authRoutes } from './routes/auth.ts';
 import { dispatchRoutes } from './routes/dispatch.ts';
 import { insightRoutes } from './routes/insights.ts';
 import { liveRoutes } from './routes/live.ts';
+import { loaderRoutes } from './routes/loader.ts';
+import { driverRoutes } from './routes/driver.ts';
+import { storeRoutes } from './routes/store.ts';
 import { HttpError } from './plans.ts';
 import { prisma } from './db.ts';
 
-const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' } });
+// bodyLimit: driver sync batches carry small photos and signatures.
+const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' }, bodyLimit: 8 * 1024 * 1024 });
 await app.register(cors, { origin: true });
 await app.register(jwt, { secret: process.env.JWT_SECRET ?? 'dev-only-secret-change-me' });
 
@@ -33,7 +37,9 @@ await app.register(async (api) => {
   await api.register(dispatchRoutes);
   await api.register(liveRoutes);
   await api.register(insightRoutes);
-  // Part 3 registers: loader, driver, sync. Part 4: store.
+  await api.register(loaderRoutes);
+  await api.register(driverRoutes);
+  await api.register(storeRoutes);
 }, { prefix: '/api' });
 
 const port = Number(process.env.API_PORT ?? 3000);

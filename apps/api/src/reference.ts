@@ -84,3 +84,26 @@ export function festivalFor(iso: string): string | null {
   }
   return null;
 }
+
+/**
+ * Screen clocks. In demo mode each role's story happens at its own time of night, so the walkthrough reads
+ * naturally whatever the real hour: loaders at 02:40 (DEMO_LOADER_CLOCK), dispatcher live view at 06:42 (DEMO_CLOCK).
+ * Drivers always use their phone's real clock.
+ */
+export function loaderNow(): string {
+  if (process.env.DEMO_LOADER_CLOCK) return process.env.DEMO_LOADER_CLOCK;
+  if (process.env.DEMO_MODE === '1') return '02:40';
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Colombo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+}
+
+/** HH:MM in Colombo for a timestamp. */
+export const clockOf = (d: Date) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Colombo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d);
+
+/** Store manager clock (16:00 cutoff countdown). Demo mode: 14:18, as in the Figma SM1 frame. */
+export function storeNow(): string {
+  if (process.env.DEMO_STORE_CLOCK) return process.env.DEMO_STORE_CLOCK;
+  if (process.env.DEMO_MODE === '1') return '14:18';
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Colombo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+}
+/** A timestamp for HH:MM Colombo time on a date. */
+export const atColombo = (iso: string, hhmm: string) => new Date(`${iso}T${hhmm}:00+05:30`);

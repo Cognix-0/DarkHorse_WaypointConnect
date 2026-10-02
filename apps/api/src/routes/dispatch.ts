@@ -90,6 +90,14 @@ export async function dispatchRoutes(app: FastifyInstance) {
       });
       return { vehicleId: t.vehicleId, tripNo: t.tripNo, brand: orders[0]!.brand, district: orders[0]!.district, orders };
     });
+    // Goods on a sealed or departed vehicle can't be changed from the board.
+    for (const old of day.plan?.trips ?? []) {
+      if (!old.sealedAt && !old.departedAt) continue;
+      const now = trips.find((t) => t.vehicleId === old.vehicleId && t.tripNo === old.tripNo);
+      const a = old.stops.map((x) => x.orderId).sort().join();
+      const b = (now?.orders ?? []).map((o) => o.ref).sort().join();
+      if (a !== b) throw new HttpError(409, `${old.vehicleId} trip ${old.tripNo} is already ${old.departedAt ? 'on the road' : 'sealed'}. Its goods can't change.`, { code: 'TRIP_SEALED' });
+    }
     await writeTrips(day, trips);
     const fresh = await loadDay(date, depot);
     return toPlanDto(fresh.plan!, fresh);
@@ -105,7 +113,15 @@ export async function dispatchRoutes(app: FastifyInstance) {
     const trips = withoutOrder(engineTrips(day.plan, day), order.ref);
     const vehicle = day.engineVehicles.find((v) => v.id === body.vehicleId);
     if (!vehicle) throw new HttpError(404, 'Vehicle not found');
+    const closed = closedTrips(day);
+    const fromTrip = day.plan?.trips.find((t) => t.stops.some((x) => x.orderId === order.ref));
+    if (fromTrip && closed.has(`${fromTrip.vehicleId}|${fromTrip.tripNo}`)) {
+      return { ok: false, code: 'TRIP_SEALED', reason: `it is already on ${fromTrip.vehicleId}, which is ${fromTrip.departedAt ? 'on the road' : 'sealed'}`, alternatives: [] };
+    }
     const r = checkPlacement(order, vehicle, trips.filter((t) => t.vehicleId === vehicle.id), day.ctx, body.tripNo);
+    if (r.ok && closed.has(`${vehicle.id}|${r.tripNo}`) && !r.newTrip) {
+      return { ok: false, code: 'TRIP_SEALED', reason: `${vehicle.id} trip ${r.tripNo} is already sealed`, alternatives: alternativesFor(order, trips, day).slice(0, 3) };
+    }
     const alternatives = r.ok ? [] : alternativesFor(order, trips, day).slice(0, 3);
     return r.ok ? { ok: true, alternatives } : { ok: false, code: r.code, reason: r.reason, alternatives };
   });
@@ -129,7 +145,7 @@ export async function dispatchRoutes(app: FastifyInstance) {
   app.post('/plans/publish', dispatcher, async (req) => {
     const { date, depot } = dayOf(req);
     const day = await loadDay(date, depot);
-    const version = await publish(day);
+    const version = await publish(day, req.user.name);
     return { version };
   });
 }
@@ -138,12 +154,15 @@ function withoutOrder(trips: ETrip[], ref: string): ETrip[] {
   return trips.map((t) => ({ ...t, orders: t.orders.filter((o) => o.ref !== ref) })).filter((t) => t.orders.length > 0);
 }
 
-/** Vehicles that would accept the order as things stand, emptiest first. */
+const closedTrips = (day: Day) => new Set((day.plan?.trips ?? []).filter((t) => t.sealedAt || t.departedAt).map((t) => `${t.vehicleId}|${t.tripNo}`));
+
+/** Vehicles that would accept the order as things stand, emptiest first (sealed trips excluded). */
 function alternativesFor(order: EOrder, trips: ETrip[], day: Day): string[] {
+  const closed = closedTrips(day);
   return day.engineVehicles
     .filter((v) => v.available && v.depot === order.depot)
     .map((v) => ({ v, r: checkPlacement(order, v, trips.filter((t) => t.vehicleId === v.id), day.ctx) }))
-    .filter((x) => x.r.ok)
+    .filter((x) => x.r.ok && (x.r.newTrip || !closed.has(`${x.v.id}|${x.r.tripNo}`)))
     .sort((a, b) => Number(a.v.temp === 'reefer' && order.temp === 'ambient') - Number(b.v.temp === 'reefer' && order.temp === 'ambient') || a.v.weightCapKg - b.v.weightCapKg)
     .map((x) => x.v.id);
 }

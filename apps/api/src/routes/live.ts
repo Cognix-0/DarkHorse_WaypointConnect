@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { toHHMM, toMin } from '@waypoint/shared';
-import { AlertActionRequest, type TLiveAlertDto, type TLiveResponse, type TLiveRowDto } from '@waypoint/shared/contract';
+import { AlertActionRequest, type TLiveAlertDto, type TLiveResponse, type TLiveRowDto, type TPod } from '@waypoint/shared/contract';
 import { requireRole } from '../auth.ts';
 import { prisma } from '../db.ts';
 import { colomboNow, shortDate } from '../reference.ts';
@@ -39,7 +39,7 @@ export async function computeLive(day: Day): Promise<TLiveResponse> {
   });
   const alerts: TLiveAlertDto[] = notes.map((n) => {
     const kind = (KINDS as readonly string[]).includes(n.kind) ? (n.kind as TLiveAlertDto['kind']) : 'info';
-    return { id: n.id, kind, title: n.title ?? n.kind, detail: n.message, at: n.createdAt.toISOString(), actions: n.done ? [] : ACTIONS[kind] ?? [], done: n.done };
+    return { id: n.id, kind, title: n.title ?? n.kind, detail: n.message, at: n.createdAt.toISOString(), actions: n.done && kind !== 'pod' ? [] : ACTIONS[kind] ?? [], done: n.done, stopId: ((n.refs ?? {}) as Record<string, string>).stopId ?? null };
   }).sort((a, b) => Number(a.done) - Number(b.done) || rank(a.kind) - rank(b.kind));
 
   const plan = day.plan;
@@ -65,7 +65,8 @@ export async function computeLive(day: Day): Promise<TLiveResponse> {
     let status: TLiveRowDto['status'];
     let eta = next?.plannedArrival ?? null;
     if (!next) status = t.tripNo === 1 && hasTrip2 ? 'trip_done' : 'done';
-    else if (lastSeen && nowMin - toMin(lastSeen) > OFFLINE_AFTER_MIN) status = 'offline';
+    // A reading from the future means the phone and the (demo) clock disagree: treat it as just seen.
+    else if (lastSeen && nowMin - toMin(lastSeen) > OFFLINE_AFTER_MIN && toMin(lastSeen) <= nowMin) status = 'offline';
     else if (nowMin < toMin(t.departAt) && !tEvents.length) status = shorts.some((s) => s.tripId === t.id) ? 'short_loaded' : 'not_started';
     else {
       // Lateness so far = when the driver actually reached the last stop minus when the plan said.
@@ -73,7 +74,9 @@ export async function computeLive(day: Day): Promise<TLiveResponse> {
       const vehicleTrips = new Set(plan.trips.filter((x) => x.vehicleId === t.vehicleId).map((x) => x.id));
       const arrivals = events.filter((e) => e.type === 'stop.arrived' && vehicleTrips.has(e.stop.tripId));
       const lastArr = arrivals.at(-1);
-      const lateBy = lastArr ? Math.max(0, toMin(clockOf(lastArr.occurredAt)) - toMin(lastArr.stop.plannedArrival)) : 0;
+      const rawLate = lastArr ? toMin(clockOf(lastArr.occurredAt)) - toMin(lastArr.stop.plannedArrival) : 0;
+      // More than 3 h off the plan is clock skew (e.g. a demo run in the evening), not lateness.
+      const lateBy = rawLate > 0 && rawLate <= 180 ? rawLate : 0;
       const projected = next.status === 'arrived' ? toMin(next.plannedArrival) : Math.max(toMin(next.plannedArrival) + lateBy, nowMin);
       eta = toHHMM(projected);
       const close = toMin(nextOrder?.outlet.windowClose ?? '23:59');
@@ -106,6 +109,14 @@ export async function liveRoutes(app: FastifyInstance) {
   app.get('/live', dispatcher, async (req) => {
     const { date, depot } = dayOf(req);
     return computeLive(await loadDay(date, depot));
+  });
+
+  // "View POD" on an alert: the photo, signature and receiver the driver recorded.
+  app.get('/live/pod/:stopId', dispatcher, async (req): Promise<TPod> => {
+    const stop = await prisma.tripStop.findUnique({ where: { id: (req.params as { stopId: string }).stopId }, include: { trip: { include: { vehicle: true } }, events: { where: { type: 'stop.delivered' }, orderBy: { occurredAt: 'desc' }, take: 1 } } });
+    const ev = stop?.events[0];
+    if (!stop || !ev) throw new HttpError(404, 'No proof of delivery recorded for this stop yet.');
+    return { receiverName: ev.receiverName, at: ev.occurredAt.toISOString(), photo: ev.photo, signature: ev.signature, driverName: stop.trip.vehicle.driverName, vehicleId: stop.trip.vehicleId };
   });
 
   app.post('/live/alerts/:id/action', dispatcher, async (req) => {

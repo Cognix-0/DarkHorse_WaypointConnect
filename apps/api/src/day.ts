@@ -149,6 +149,7 @@ export function toPlanDto(plan: PlanRow, day: Day): TPlanDto {
         minutes: et.orders.length ? tripMinutesOf(et, day.ctx) : 0,
         departAt: s?.departAt ?? t.departAt, endAt: s?.endAt ?? t.departAt,
         stops: (s?.stops ?? []).map((x) => ({ orderId: x.ref, outletId: byRef.get(x.ref)?.outletId ?? x.outletId, seq: x.seq, eta: x.eta, late: x.late })),
+        state: tripState(t),
       };
     }),
     deferred: plan.deferrals
@@ -157,6 +158,9 @@ export function toPlanDto(plan: PlanRow, day: Day): TPlanDto {
     violations: violations.map((v) => ({ vehicleId: v.vehicleId, tripNo: v.tripNo, code: v.code, reason: v.reason })),
   };
 }
+
+export const tripState = (t: { departedAt: Date | null; sealedAt: Date | null; loaderId: string | null }) =>
+  (t.departedAt ? 'departed' : t.sealedAt ? 'sealed' : t.loaderId ? 'loading' : 'open') as 'open' | 'loading' | 'sealed' | 'departed';
 
 export function boardVehicles(day: Day) {
   const trips = engineTrips(day.plan, day);
