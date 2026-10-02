@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { PrismaClient, type Brand, type Depot, type DockType, type Parking, type Temp, type VehicleTemp, type VehicleType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { parseCsv } from '../packages/shared/src/engine/reference.ts';
+import { goodsLinesFor } from '../packages/shared/src/goods.ts';
 
 const prisma = new PrismaClient();
 const DATA = join(process.cwd(), 'data');
@@ -21,7 +22,30 @@ const day = (iso: string, plus = 0) => {
   return d;
 };
 
-const DRIVERS = ['Nimal Fernando', 'Saman Kumara', 'Ajith Perera', 'Chaminda Silva', 'Ruwan Jayasinghe', 'Pradeep Bandara', 'Mahesh Rathnayake', 'Kamal Wijesinghe', 'Dinesh Gunawardena', 'Lasantha Herath'];
+/** The demo store: Waypoint Fresh, Gampaha. On the demo day its dry order is delivered and its chilled order is deferred. */
+const STORE_OUTLET = 'OUT026';
+const FIRST = ['Ayesha', 'Dilani', 'Tharindu', 'Chamari', 'Sanjeewa', 'Nadeesha', 'Kavinda', 'Ishara', 'Roshan', 'Malsha', 'Supun', 'Hiruni', 'Asela', 'Fathima', 'Ravi', 'Priyanka'];
+const LAST = ['Jayasinghe', 'Jayawardena', 'Perera', 'Fernando', 'Wickramasinghe', 'Rajapaksha', 'Senanayake', 'Abeysekara', 'Gunasekara', 'Dissanayake', 'Karunaratne', 'Mohamed', 'Nadarajah'];
+const NOTES = ['Hill road, park on the left', 'Use the side lane; main road has no parking', 'Unload at the rear gate', 'Mall bay 2, call security on arrival', null, null, null];
+const manager = (outletId: string) => {
+  if (outletId === STORE_OUTLET) return { managerName: 'Nimali Perera', managerPhone: '+94 77 312 0026', deliveryNote: 'Unload at the rear gate' };
+  const n = Number(outletId.replace(/\D/g, ''));
+  return {
+    managerName: `${FIRST[n % FIRST.length]} ${LAST[(n * 7) % LAST.length]}`,
+    managerPhone: `+94 7${n % 8} ${String(100 + ((n * 37) % 900))} ${String(1000 + ((n * 211) % 9000))}`,
+    deliveryNote: NOTES[n % NOTES.length] ?? null,
+  };
+};
+
+/** Goods lines (packs) for an order; packs add up to the order's units. */
+async function addLines(order: { id: string; units: number; weightKg: number; temp: Temp }, brand: Brand, key: string) {
+  const lines = goodsLinesFor(key, brand, order.temp, order.units, order.weightKg);
+  await prisma.orderLine.createMany({ data: lines.map((l) => ({ orderId: order.id, seq: l.seq, product: l.product, pack: l.pack, packSize: l.packSize, packs: l.packs, ordered: l.ordered, weightKg: l.weightKg })) });
+}
+
+/** The demo driver's truck. On the demo day the engine plans it Kurunegala (trip 1) then Gampaha (trip 2, the demo store OUT026). */
+const DRIVER_VEHICLE = 'VEH024';
+const DRIVERS = ['Kusal Silva', 'Saman Kumara', 'Ajith Perera', 'Chaminda Silva', 'Ruwan Jayasinghe', 'Pradeep Bandara', 'Mahesh Rathnayake', 'Kamal Wijesinghe', 'Dinesh Gunawardena', 'Lasantha Herath'];
 
 async function main() {
   // ---- reference data
@@ -29,6 +53,7 @@ async function main() {
     const data = {
       brand: r.brand as Brand, district: r.district!, depot: r.depot as Depot, dockType: r.dock_type as DockType,
       parking: r.parking_constraint as Parking, mallWindow: r.mall_window || null, windowOpen: r.window_open_time!, windowClose: r.window_close_time!,
+      ...manager(r.outlet_id!),
     };
     await prisma.outlet.upsert({ where: { id: r.outlet_id! }, update: data, create: { id: r.outlet_id!, ...data } });
   }
@@ -37,7 +62,7 @@ async function main() {
     const data = {
       type: r.type as VehicleType, temp: r.temp as VehicleTemp, weightCapKg: Number(r.weight_cap_kg), volumeCapM3: Number(r.volume_cap_m3),
       depot: r.depot as Depot, kmPerL: Number(r.km_per_l), weeklyFuelQuotaL: Number(r.weekly_fuel_quota_l),
-      driverName: r.vehicle_id === 'VEH036' ? 'Nimal Fernando' : DRIVERS[i % DRIVERS.length]!,
+      driverName: r.vehicle_id === DRIVER_VEHICLE ? 'Nimal Fernando' : DRIVERS[i % DRIVERS.length]!,
     };
     await prisma.vehicle.upsert({ where: { id: r.vehicle_id! }, update: data, create: { id: r.vehicle_id!, ...data } });
   }
@@ -47,8 +72,8 @@ async function main() {
   const users = [
     { email: 'dispatcher@waypoint.demo', name: 'Ruwan Perera', role: 'dispatcher' as const, depot: 'Peliyagoda' as const },
     { email: 'loader@waypoint.demo', name: 'Kasun Silva', role: 'loader' as const, depot: 'Peliyagoda' as const },
-    { email: 'driver@waypoint.demo', name: 'Nimal Fernando', role: 'driver' as const, depot: 'Peliyagoda' as const, vehicleId: 'VEH036' },
-    { email: 'store@waypoint.demo', name: 'Dilani Jayawardena', role: 'store' as const, outletId: 'OUT012' },
+    { email: 'driver@waypoint.demo', name: 'Nimal Fernando', role: 'driver' as const, depot: 'Peliyagoda' as const, vehicleId: DRIVER_VEHICLE },
+    { email: 'store@waypoint.demo', name: 'Nimali Perera', role: 'store' as const, outletId: STORE_OUTLET },
   ];
   for (const u of users) {
     await prisma.user.upsert({ where: { email: u.email }, update: { ...u, passwordHash: hash }, create: { ...u, passwordHash: hash } });
@@ -67,12 +92,13 @@ async function main() {
       if (!outlet?.lastServedOn || outlet.lastServedOn < lastServed || outlet.lastServedOn >= demo) {
         await prisma.outlet.update({ where: { id: r.outlet_id! }, data: { lastServedOn: lastServed } });
       }
-      await prisma.order.create({
+      const created = await prisma.order.create({
         data: {
           outletId: r.outlet_id!, deliveryDate: demo, temp: r.temp_requirement as Temp, units: Number(r.order_units),
           weightKg: Number(r.order_weight_kg), volumeM3: Number(r.order_volume_m3), status: 'locked', placedAt, sourceRef: r.order_ref,
         },
       });
+      await addLines(created, r.brand as Brand, r.order_ref!);
       if (r.deferred_yesterday === '1') {
         // Yesterday's order for this outlet, deferred: this is what makes the outlet "skipped last run".
         const prev = await prisma.order.create({
@@ -81,6 +107,7 @@ async function main() {
             weightKg: Number(r.order_weight_kg), volumeM3: Number(r.order_volume_m3), status: 'deferred', sourceRef: `${r.order_ref}-prev`,
           },
         });
+        await addLines(prev, r.brand as Brand, `${r.order_ref}-prev`);
         await prisma.deferral.create({
           data: { orderId: prev.id, reason: r.temp_requirement === 'chilled' ? 'no_reefer_capacity' : 'vehicle_full', type: 'unavoidable', newDate: demo, detail: 'Seeded history' },
         });
@@ -90,8 +117,10 @@ async function main() {
     const late = new Date(`${day(DEMO_DATE, -1).toISOString().slice(0, 10)}T10:50:00.000Z`); // 16:20 Colombo
     const nextRun = day(DEMO_DATE, 1);
     for (const [outletId, temp, units, kg, m3] of [['OUT014', 'ambient', 30, 276.0, 1.5], ['OUT047', 'ambient', 12, 180.4, 1.1], ['OUT061', 'chilled', 22, 154.2, 0.8]] as const) {
-      if (!(await prisma.outlet.findUnique({ where: { id: outletId } }))) continue;
-      await prisma.order.create({ data: { outletId, deliveryDate: nextRun, temp, units, weightKg: kg, volumeM3: m3, status: 'placed', placedAt: late, note: 'Received after the 16:00 cutoff' } });
+      const outlet = await prisma.outlet.findUnique({ where: { id: outletId } });
+      if (!outlet) continue;
+      const o = await prisma.order.create({ data: { outletId, deliveryDate: nextRun, temp, units, weightKg: kg, volumeM3: m3, status: 'placed', placedAt: late, note: 'Received after the 16:00 cutoff' } });
+      await addLines(o, outlet.brand, `late-${outletId}`);
     }
     for (const r of csv('task2b_peak_day_fleet.csv').filter((f) => f.scenario === 'S1' && f.status === 'in_workshop')) {
       await prisma.vehicleDayStatus.upsert({
@@ -101,6 +130,40 @@ async function main() {
       });
     }
   }
+
+  // The demo store's recent history (delivered and confirmed), so Orders and Receipts are not empty.
+  if ((await prisma.receipt.count({ where: { order: { outletId: STORE_OUTLET } } })) === 0) {
+    const store = await prisma.outlet.findUnique({ where: { id: STORE_OUTLET } });
+    if (store) {
+      const history: [number, Temp, number, number, string, string, number][] = [
+        // days before, temp, units, kg, delivered, confirmed, short units
+        [2, 'ambient', 64, 520.4, '06:02', '06:20', 0],
+        [2, 'chilled', 58, 410.8, '05:31', '05:48', 0],
+        [4, 'chilled', 61, 433.0, '05:28', '06:05', 1],
+        [4, 'ambient', 70, 566.2, '05:52', '06:14', 0],
+      ];
+      for (const [back, temp, units, kg, delivered, confirmed, short] of history) {
+        const d = day(DEMO_DATE, -back).toISOString().slice(0, 10);
+        const o = await prisma.order.create({
+          data: { outletId: STORE_OUTLET, deliveryDate: day(DEMO_DATE, -back), temp, units, weightKg: kg, volumeM3: Math.round(kg / 180 * 10) / 10, status: 'received', placedAt: new Date(`${day(DEMO_DATE, -back - 1).toISOString().slice(0, 10)}T08:40:00.000Z`), sourceRef: `hist-${STORE_OUTLET}-${d}-${temp}` },
+        });
+        await addLines(o, store.brand, o.sourceRef!);
+        const lines = await prisma.orderLine.findMany({ where: { orderId: o.id }, orderBy: { seq: 'asc' } });
+        await prisma.receipt.create({
+          data: {
+            orderId: o.id, confirmed: true, byName: 'Nimali Perera',
+            deliveredAt: new Date(`${d}T${delivered}:00+05:30`), at: new Date(`${d}T${confirmed}:00+05:30`),
+            issue: short ? 'missing' : null, issueUnits: short || null, note: short ? `${lines[0]!.product}: 1 short · resolved (sent on the next run)` : null,
+            lines: lines.map((l, i) => ({ lineId: l.id, product: l.product, ordered: l.packs, received: i === 0 ? l.packs - short : l.packs, status: i === 0 && short ? 'short' : 'ok' })),
+          },
+        });
+      }
+    }
+  }
+
+  // Older databases (before goods lines existed): give every order its lines.
+  const withoutLines = (await prisma.order.findMany({ include: { outlet: true, lines: { select: { id: true } } } })).filter((o) => o.lines.length === 0);
+  for (const o of withoutLines) await addLines(o, o.outlet.brand, o.sourceRef ?? o.id);
 
   const counts = {
     outlets: await prisma.outlet.count(), vehicles: await prisma.vehicle.count(), users: await prisma.user.count(),

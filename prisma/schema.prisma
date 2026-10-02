@@ -65,6 +65,7 @@ enum OrderStatus {
   delivered
   failed
   received
+  cancelled
 }
 
 enum PlanStatus {
@@ -110,6 +111,10 @@ model Outlet {
   windowOpen   String // HH:MM
   windowClose  String
   lastServedOn DateTime? @db.Date
+  managerName  String?
+  managerPhone String?
+  /// delivery note for drivers, e.g. "Hill road, park on the left"
+  deliveryNote String?
   orders       Order[]
   users        User[]
 }
@@ -174,8 +179,28 @@ model Order {
   deferrals    Deferral[]
   loadChecks   LoadCheck[]
   receipt      Receipt?
+  lines        OrderLine[]
 
   @@index([deliveryDate, status])
+}
+
+/// Goods line ("item") of an order, counted in packs. Packs on all lines add up to Order.units.
+model OrderLine {
+  id         String    @id @default(cuid())
+  orderId    String
+  seq        Int
+  product    String
+  pack       String
+  packSize   String
+  packs      Int
+  ordered    String
+  weightKg   Float
+  loadedAt   DateTime?
+  shortPacks Int       @default(0)
+  problem    String?
+  order      Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
 }
 
 model Plan {
@@ -204,7 +229,16 @@ model Trip {
   departAt   String // HH:MM
   minutes    Int
   loadStatus LoadStatus @default(to_load)
+  /// dock bay, assigned when the plan is published (0 = not yet)
+  bay        Int        @default(0)
+  loaderId   String?
+  loaderName String?
+  loadingStartedAt DateTime?
   sealedAt   DateTime?
+  sealNo     String?
+  reeferTempC Float?
+  heldAt     DateTime?
+  departedAt DateTime?
   plan       Plan       @relation(fields: [planId], references: [id], onDelete: Cascade)
   vehicle    Vehicle    @relation(fields: [vehicleId], references: [id])
   stops      TripStop[]
@@ -220,6 +254,11 @@ model TripStop {
   seq            Int
   plannedArrival String // HH:MM
   status         StopStatus      @default(pending)
+  arrivedAt      DateTime?
+  deliveredAt    DateTime?
+  deliveredUnits Int?
+  receiverName   String?
+  failedReason   String?
   trip           Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
   order          Order           @relation(fields: [orderId], references: [id])
   events         DeliveryEvent[]
@@ -237,6 +276,9 @@ model Deferral {
   byUserId  String?
   /// second deferrals (outlet also skipped on the last run) need an explicit confirmation before publishing
   confirmedAt DateTime?
+  /// the store manager's answer on SM6: accepted | cancelled
+  storeResponse String?
+  respondedAt   DateTime?
   createdAt DateTime       @default(now())
   order     Order          @relation(fields: [orderId], references: [id])
   plan      Plan?          @relation(fields: [planId], references: [id])
@@ -244,15 +286,21 @@ model Deferral {
   @@index([orderId])
 }
 
+/// A loader's problem report on one goods line (L3).
 model LoadCheck {
   id          String   @id @default(cuid())
   tripId      String
   orderId     String
-  loadedUnits Int
+  lineId      String?
+  loadedUnits Int      @default(0)
+  /// packs affected
   shortUnits  Int      @default(0)
-  problem     String? // missing | damaged | wrong_item
+  problem     String? // damaged | short | wrong_pack | no_space | wrong_temp | vehicle | other
+  action      String? // carry_over | replace | hold
   note        String?
+  photo       String?
   byUserId    String?
+  byName      String?
   at          DateTime @default(now())
   trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
   order       Order    @relation(fields: [orderId], references: [id])
@@ -270,18 +318,63 @@ model DeliveryEvent {
   deliveredUnits Int?
   reason         String?
   note           String?
-  photo          String? // file path or data URL
+  photo          String? // data URL (small JPEG)
+  signature      String? // data URL (PNG)
+  outcome        String?
   stop           TripStop @relation(fields: [stopId], references: [id])
 }
 
+/// What each published version of a plan looked like, so the dock can see "v1 → v2".
+model PlanVersion {
+  id          String   @id @default(cuid())
+  planId      String
+  version     Int
+  /// [{ vehicleId, tripNo, orderIds }]
+  snapshot    Json
+  publishedAt DateTime @default(now())
+  byName      String?
+
+  @@unique([planId, version])
+}
+
+/// Who confirmed they are working from which plan version (loaders, drivers).
+model PlanAck {
+  id       String   @id @default(cuid())
+  planId   String
+  version  Int
+  userId   String
+  userName String
+  role     Role
+  at       DateTime @default(now())
+
+  @@unique([planId, version, userId])
+}
+
+/// A loader moved an order's goods to its new vehicle after a plan change (L4 "Mark moved").
+model LoadMove {
+  id       String   @id @default(cuid())
+  planId   String
+  version  Int
+  orderId  String
+  byName   String?
+  movedAt  DateTime @default(now())
+
+  @@unique([planId, version, orderId])
+}
+
+/// The store manager's confirmation of what arrived (SM5).
 model Receipt {
-  id         String   @id @default(cuid())
-  orderId    String   @unique
-  confirmed  Boolean
-  issue      String?
-  issueUnits Int?
-  note       String?
-  at         DateTime @default(now())
+  id          String    @id @default(cuid())
+  orderId     String    @unique
+  confirmed   Boolean
+  issue       String?
+  issueUnits  Int?
+  note        String?
+  /// [{ lineId, product, ordered, received, status: ok | short | damaged }]
+  lines       Json      @default("[]")
+  deliveredAt DateTime?
+  byName      String?
+  at          DateTime  @default(now())
   order      Order    @relation(fields: [orderId], references: [id])
 }
 
