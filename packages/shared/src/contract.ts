@@ -43,6 +43,8 @@ export const VehicleDto = z.object({
 // ---------- orders ----------
 export const OrderDto = z.object({
   id: z.string(),
+  /** short human reference shown on every screen, e.g. ORD-25047 */
+  ref: z.string(),
   outlet: OutletDto,
   deliveryDate: IsoDate,
   temp: Temp,
@@ -55,16 +57,22 @@ export const OrderDto = z.object({
   daysSinceLastServed: z.number().int(),
   placedAt: z.string(),
   arrivalWindow: z.object({ from: HHMM, to: HHMM }).nullable(),
-  deferral: z.object({ reason: DeferralReason, type: DeferralType, note: z.string().nullable(), newDate: IsoDate }).nullable(),
+  deferral: z.object({ reason: DeferralReason, type: DeferralType, note: z.string().nullable(), newDate: IsoDate, confirmed: z.boolean() }).nullable(),
 });
 export const OrderQueueResponse = z.object({
   date: IsoDate,
   lockedAt: z.string().nullable(),
   orders: z.array(OrderDto),
+  /** received after the 16:00 cutoff: moved to the next run, shown greyed out */
+  afterCutoffOrders: z.array(OrderDto),
   summary: z.object({
     total: z.number(), chilled: z.number(), skippedLastRun: z.number(), afterCutoff: z.number(),
     vehiclesAvailable: z.number(), vehiclesTotal: z.number(),
+    weightKg: z.number(), volumeM3: z.number(), chilledKg: z.number(), vanOnly: z.number(), mallWindow: z.number(),
+    byBrand: z.object({ Fresh: z.number(), Style: z.number(), Tech: z.number() }),
   }),
+  nextRunDate: IsoDate,
+  planStatus: z.enum(['none', 'draft', 'published']),
 });
 export const PlaceOrderRequest = z.object({
   deliveryDate: IsoDate,
@@ -74,6 +82,7 @@ export const PlaceOrderRequest = z.object({
 });
 
 // ---------- planning ----------
+export const TripStopPlanDto = z.object({ orderId: z.string(), outletId: z.string(), seq: z.number().int(), eta: HHMM, late: z.boolean() });
 export const TripDto = z.object({
   id: z.string(),
   vehicleId: z.string(),
@@ -84,6 +93,10 @@ export const TripDto = z.object({
   weightKg: z.number(),
   volumeM3: z.number(),
   minutes: z.number(),
+  /** timetable from engine/schedule.ts; stops are in delivery order */
+  departAt: HHMM,
+  endAt: HHMM,
+  stops: z.array(TripStopPlanDto),
 });
 export const Violation = z.object({ vehicleId: z.string(), tripNo: z.number().optional(), code: z.string(), reason: z.string() });
 export const PlanDto = z.object({
@@ -95,6 +108,7 @@ export const PlanDto = z.object({
   deferred: z.array(z.object({ orderId: z.string(), reason: DeferralReason, type: DeferralType, detail: z.string() })),
   violations: z.array(Violation),
   publishedAt: z.string().nullable(),
+  version: z.number().int(),
 });
 export const SaveTripsRequest = z.object({
   trips: z.array(z.object({ vehicleId: z.string(), tripNo: z.union([z.literal(1), z.literal(2)]), orderIds: z.array(z.string()).min(1) })),
@@ -108,6 +122,138 @@ export const DeferRequest = z.object({
   /** must be true when the outlet was deferred on the last run */
   confirmSecondDeferral: z.boolean().optional(),
 });
+
+// ---------- dispatcher screens (D1–D6) ----------
+/** D3 planning board: everything the board needs in one request. */
+export const BoardVehicleDto = VehicleDto.extend({
+  /** litres used earlier this week */
+  fuelUsedL: z.number(),
+  /** litres today's planned trips will use */
+  fuelPlannedL: z.number(),
+});
+export const BoardResponse = z.object({
+  date: IsoDate,
+  depot: Depot,
+  plan: PlanDto.nullable(),
+  orders: z.array(OrderDto),
+  vehicles: z.array(BoardVehicleDto),
+});
+export const SuggestPlanRequest = z.object({ date: IsoDate, depot: Depot });
+export const ConfirmDeferralRequest = z.object({ note: z.string().trim().min(3, 'Say why this outlet is skipped again').max(500) });
+
+/** D1 overview */
+export const AttentionItem = z.object({
+  kind: z.enum(['second_deferral', 'reefer_short', 'workshop', 'late', 'shortfall', 'plan_unpublished', 'after_cutoff']),
+  severity: z.enum(['high', 'medium', 'low']),
+  title: z.string(),
+  detail: z.string(),
+  /** dispatcher route to open, e.g. /dispatcher/deferrals */
+  link: z.string(),
+});
+export const OverviewResponse = z.object({
+  date: IsoDate,
+  depot: Depot,
+  planStatus: z.enum(['none', 'draft', 'published']),
+  planVersion: z.number().int(),
+  kpis: z.object({
+    ordersLocked: z.number(), chilled: z.number(), planned: z.number(), deferred: z.number(), trips: z.number(),
+    vehiclesUsed: z.number(), vehiclesAvailable: z.number(), vehiclesTotal: z.number(),
+    chilledDemandKg: z.number(), reeferCapacityKg: z.number(), skippedLastRun: z.number(), afterCutoff: z.number(),
+  }),
+  brandDemand: z.array(z.object({ brand: Brand, orders: z.number(), units: z.number(), weightKg: z.number(), planned: z.number(), deferred: z.number() })),
+  depots: z.array(z.object({ depot: Depot, orders: z.number(), vehiclesAvailable: z.number(), vehiclesTotal: z.number(), reefersAvailable: z.number(), planStatus: z.enum(['none', 'draft', 'published']) })),
+  attention: z.array(AttentionItem),
+});
+
+/** D4 deferral review */
+export const DeferralRowDto = z.object({
+  id: z.string(),
+  order: OrderDto,
+  reason: DeferralReason,
+  type: DeferralType,
+  detail: z.string().nullable(),
+  note: z.string().nullable(),
+  newDate: IsoDate,
+  /** the outlet was also skipped on the last run: needs an explicit confirmation */
+  secondDeferral: z.boolean(),
+  confirmed: z.boolean(),
+});
+export const RecoveryOption = z.object({
+  id: z.enum(['A', 'B', 'C']),
+  title: z.string(),
+  detail: z.string(),
+  /** what the plan would look like with this option (computed by the engine) */
+  served: z.number(),
+  deferred: z.number(),
+  action: z.enum(['apply', 'request']),
+  state: z.enum(['available', 'applied', 'requested']),
+});
+export const DeferralReviewResponse = z.object({
+  date: IsoDate,
+  depot: Depot,
+  planId: z.string().nullable(),
+  planStatus: z.enum(['none', 'draft', 'published']),
+  overload: z.object({ active: z.boolean(), title: z.string(), detail: z.string(), chilledDemandKg: z.number(), reeferCapacityKg: z.number() }),
+  options: z.array(RecoveryOption),
+  deferrals: z.array(DeferralRowDto),
+});
+export const OptionActionRequest = z.object({ date: IsoDate, depot: Depot });
+
+/** D5 live tracking */
+export const LiveTripStatus = z.enum(['not_started', 'on_time', 'at_risk', 'late', 'offline', 'short_loaded', 'trip_done', 'done']);
+export const LiveRowDto = z.object({
+  tripId: z.string(),
+  vehicleId: z.string(),
+  tripNo: z.number().int(),
+  route: z.string(),
+  driverName: z.string().nullable(),
+  stopsDone: z.number().int(),
+  stopsTotal: z.number().int(),
+  nextStop: z.object({ outletId: z.string(), district: z.string(), eta: HHMM, windowClose: HHMM }).nullable(),
+  status: LiveTripStatus,
+  lastSeenAt: z.string().nullable(),
+});
+export const LiveAlertDto = z.object({
+  id: z.string(),
+  kind: z.enum(['late', 'loader_flag', 'offline', 'pod', 'failed', 'receipt_issue', 'info']),
+  title: z.string(),
+  detail: z.string(),
+  at: z.string(),
+  actions: z.array(z.object({ id: z.string(), label: z.string() })),
+  done: z.boolean(),
+});
+export const LiveResponse = z.object({
+  date: IsoDate,
+  now: HHMM,
+  published: z.boolean(),
+  counts: z.object({ onTime: z.number(), atRisk: z.number(), late: z.number(), offline: z.number() }),
+  rows: z.array(LiveRowDto),
+  alerts: z.array(LiveAlertDto),
+});
+export const AlertActionRequest = z.object({ action: z.string() });
+
+/** D6 capacity forecast */
+export const ForecastDayDto = z.object({
+  date: IsoDate,
+  dow: z.string(),
+  operating: z.boolean(),
+  payday: z.boolean(),
+  festival: z.string().nullable(),
+  festivalRamp: z.number(),
+  monsoon: z.boolean(),
+  holiday: z.boolean(),
+  /** demand relative to a normal weekday (1.0) */
+  demandIndex: z.number(),
+  orders: z.number(),
+  weightKg: z.number(),
+  chilledKg: z.number(),
+  reeferCapacityKg: z.number(),
+  fleetCapacityKg: z.number(),
+  served: z.number(),
+  deferred: z.number(),
+  risk: z.enum(['ok', 'tight', 'over', 'closed']),
+});
+export const ForecastResponse = z.object({ from: IsoDate, depot: Depot, method: z.string(), days: z.array(ForecastDayDto) });
 
 // ---------- loader ----------
 export const LoadItemDto = z.object({ orderId: z.string(), outletId: z.string(), stopSeq: z.number().int(), units: z.number().int(), unitLabel: z.string(), temp: Temp, loadedUnits: z.number().int(), shortUnits: z.number().int() });
@@ -176,6 +322,22 @@ export type TDriverRouteResponse = z.infer<typeof DriverRouteResponse>;
 export type TSyncEvent = z.infer<typeof SyncEvent>;
 export type TSyncResponse = z.infer<typeof SyncResponse>;
 export type TLiveEvent = z.infer<typeof LiveEvent>;
+export type TVehicleDto = z.infer<typeof VehicleDto>;
+export type TBoardResponse = z.infer<typeof BoardResponse>;
+export type TBoardVehicleDto = z.infer<typeof BoardVehicleDto>;
+export type TCheckPlacementResponse = z.infer<typeof CheckPlacementResponse>;
+export type TOverviewResponse = z.infer<typeof OverviewResponse>;
+export type TAttentionItem = z.infer<typeof AttentionItem>;
+export type TDeferralReviewResponse = z.infer<typeof DeferralReviewResponse>;
+export type TDeferralRowDto = z.infer<typeof DeferralRowDto>;
+export type TRecoveryOption = z.infer<typeof RecoveryOption>;
+export type TLiveResponse = z.infer<typeof LiveResponse>;
+export type TLiveRowDto = z.infer<typeof LiveRowDto>;
+export type TLiveAlertDto = z.infer<typeof LiveAlertDto>;
+export type TForecastResponse = z.infer<typeof ForecastResponse>;
+export type TForecastDayDto = z.infer<typeof ForecastDayDto>;
+export type TDeferralReason = z.infer<typeof DeferralReason>;
+export type TBrand = z.infer<typeof Brand>;
 
 /** Display label for order_units, by brand. */
 export const unitLabel = (brand: z.infer<typeof Brand>) => (brand === 'Fresh' ? 'crates' : brand === 'Style' ? 'cartons' : 'items');

@@ -81,7 +81,7 @@ function explainDeferral(order: Order, failures: { v: Vehicle; code: RuleCode; r
     else if (suitable.every((f) => f.code === 'OVER_TIME_FRESH' || f.code === 'OVER_TIME_DAY')) reason = 'time_window';
     else reason = order.temp === 'chilled' ? 'no_reefer_capacity' : 'vehicle_full';
     const uniq = [...new Map(suitable.map((f) => [f.v.id, f])).values()].slice(0, 2);
-    detail = uniq.map((f) => `${f.v.id}: ${f.reason}`).join('; ');
+    detail = uniq.map((f) => (f.reason.startsWith(f.v.id) ? f.reason : `${f.v.id}: ${f.reason}`)).join('; ');
   }
   return { order, reason, type: 'unavoidable', detail };
 }
