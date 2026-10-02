@@ -1,0 +1,44 @@
+# `docker compose up` starts the whole stack: database, API (with schema sync + seed), web app, HTTPS proxy.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-waypoint}
+      POSTGRES_DB: waypoint
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d waypoint"]
+      interval: 3s
+      retries: 20
+
+  api:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-waypoint}@db:5432/waypoint
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-waypoint-demo}
+      DEMO_DATE: ${DEMO_DATE:-2026-03-25}
+      API_PORT: 3000
+    depends_on:
+      db: { condition: service_healthy }
+    restart: unless-stopped
+
+  web:
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    depends_on: [api]
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [api, web]
+    restart: unless-stopped
+
+volumes:
+  pgdata: {}
+  caddy_data: {}

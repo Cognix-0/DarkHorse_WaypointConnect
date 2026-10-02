@@ -1,0 +1,295 @@
+// Waypoint Connect data model.
+// Reference data (outlets, vehicles) comes from the competition CSVs via prisma/seed.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  dispatcher
+  loader
+  driver
+  store
+}
+
+enum Brand {
+  Fresh
+  Style
+  Tech
+}
+
+enum Temp {
+  ambient
+  chilled
+}
+
+enum DockType {
+  rear_dock
+  street
+  mall_bay
+}
+
+enum Parking {
+  normal
+  van_only
+  mall_dock
+}
+
+enum Depot {
+  Peliyagoda
+  Kandy
+}
+
+enum VehicleType {
+  truck
+  van
+}
+
+enum VehicleTemp {
+  reefer
+  ambient
+}
+
+enum OrderStatus {
+  placed
+  locked
+  planned
+  deferred
+  loaded
+  out_for_delivery
+  delivered
+  failed
+  received
+}
+
+enum PlanStatus {
+  draft
+  published
+}
+
+enum DeferralReason {
+  no_reefer_capacity
+  vehicle_full
+  time_window
+  fuel_quota
+  no_vehicle
+  other
+}
+
+enum DeferralType {
+  unavoidable
+  choice
+}
+
+enum StopStatus {
+  pending
+  arrived
+  delivered
+  failed
+}
+
+enum LoadStatus {
+  to_load
+  loading
+  sealed
+}
+
+model Outlet {
+  id           String    @id // OUT001
+  brand        Brand
+  district     String
+  depot        Depot
+  dockType     DockType
+  parking      Parking
+  mallWindow   String?
+  windowOpen   String // HH:MM
+  windowClose  String
+  lastServedOn DateTime? @db.Date
+  orders       Order[]
+  users        User[]
+}
+
+model Vehicle {
+  id               String             @id // VEH001
+  type             VehicleType
+  temp             VehicleTemp
+  weightCapKg      Float
+  volumeCapM3      Float
+  depot            Depot
+  kmPerL           Float
+  weeklyFuelQuotaL Float
+  fuelUsedWeekL    Float              @default(0)
+  driverName       String?
+  dayStatus        VehicleDayStatus[]
+  trips            Trip[]
+  users            User[]
+}
+
+/// Workshop days. No row = available.
+model VehicleDayStatus {
+  vehicleId String
+  date      DateTime @db.Date
+  status    String // in_workshop
+  note      String?
+  setById   String?
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
+
+  @@id([vehicleId, date])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role
+  depot        Depot?
+  outletId     String?
+  vehicleId    String?
+  outlet       Outlet?  @relation(fields: [outletId], references: [id])
+  vehicle      Vehicle? @relation(fields: [vehicleId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  outletId     String
+  deliveryDate DateTime    @db.Date
+  temp         Temp
+  units        Int
+  weightKg     Float
+  volumeM3     Float
+  status       OrderStatus @default(placed)
+  note         String?
+  placedAt     DateTime    @default(now())
+  /// reference from the competition data (e.g. S1-003) when seeded
+  sourceRef    String?
+  outlet       Outlet      @relation(fields: [outletId], references: [id])
+  stop         TripStop?
+  deferrals    Deferral[]
+  loadChecks   LoadCheck[]
+  receipt      Receipt?
+
+  @@index([deliveryDate, status])
+}
+
+model Plan {
+  id          String     @id @default(cuid())
+  date        DateTime   @db.Date
+  depot       Depot
+  status      PlanStatus @default(draft)
+  version     Int        @default(1)
+  publishedAt DateTime?
+  trips       Trip[]
+  deferrals   Deferral[]
+
+  @@unique([date, depot])
+}
+
+model Trip {
+  id         String     @id @default(cuid())
+  planId     String
+  vehicleId  String
+  tripNo     Int // 1 or 2
+  brand      Brand
+  district   String
+  departAt   String // HH:MM
+  minutes    Int
+  loadStatus LoadStatus @default(to_load)
+  sealedAt   DateTime?
+  plan       Plan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  vehicle    Vehicle    @relation(fields: [vehicleId], references: [id])
+  stops      TripStop[]
+  loadChecks LoadCheck[]
+
+  @@unique([planId, vehicleId, tripNo])
+}
+
+model TripStop {
+  id             String          @id @default(cuid())
+  tripId         String
+  orderId        String          @unique
+  seq            Int
+  plannedArrival String // HH:MM
+  status         StopStatus      @default(pending)
+  trip           Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  order          Order           @relation(fields: [orderId], references: [id])
+  events         DeliveryEvent[]
+}
+
+model Deferral {
+  id        String         @id @default(cuid())
+  orderId   String
+  planId    String?
+  reason    DeferralReason
+  type      DeferralType
+  note      String?
+  detail    String?
+  newDate   DateTime       @db.Date
+  byUserId  String?
+  createdAt DateTime       @default(now())
+  order     Order          @relation(fields: [orderId], references: [id])
+  plan      Plan?          @relation(fields: [planId], references: [id])
+
+  @@index([orderId])
+}
+
+model LoadCheck {
+  id          String   @id @default(cuid())
+  tripId      String
+  orderId     String
+  loadedUnits Int
+  shortUnits  Int      @default(0)
+  problem     String? // missing | damaged | wrong_item
+  note        String?
+  byUserId    String?
+  at          DateTime @default(now())
+  trip        Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  order       Order    @relation(fields: [orderId], references: [id])
+}
+
+/// Offline-first: one row per client event; eventId makes sync idempotent.
+model DeliveryEvent {
+  eventId        String   @id
+  stopId         String
+  type           String // stop.arrived | stop.delivered | stop.failed
+  occurredAt     DateTime
+  receivedAt     DateTime @default(now())
+  deviceId       String
+  receiverName   String?
+  deliveredUnits Int?
+  reason         String?
+  note           String?
+  photo          String? // file path or data URL
+  stop           TripStop @relation(fields: [stopId], references: [id])
+}
+
+model Receipt {
+  id         String   @id @default(cuid())
+  orderId    String   @unique
+  confirmed  Boolean
+  issue      String?
+  issueUnits Int?
+  note       String?
+  at         DateTime @default(now())
+  order      Order    @relation(fields: [orderId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  role      Role?
+  outletId  String?
+  userId    String?
+  kind      String
+  message   String
+  refs      Json     @default("{}")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([outletId, read])
+}

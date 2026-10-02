@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:focus-visible { outline: 3px solid theme('colors.brand.teal'); outline-offset: 2px; }
+.tabular { font-variant-numeric: tabular-nums; }

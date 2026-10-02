@@ -1,0 +1,13 @@
+# HTTPS for one domain. Browsers only allow the offline service worker and the camera on HTTPS.
+{$DOMAIN} {
+  encode gzip
+  handle /api/* {
+    reverse_proxy api:3000 {
+      # Server-Sent Events must not be buffered
+      flush_interval -1
+    }
+  }
+  handle {
+    reverse_proxy web:80
+  }
+}
