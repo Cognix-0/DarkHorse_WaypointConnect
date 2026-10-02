@@ -4,7 +4,7 @@ Read this file before every task. Keep changes small: one task, one branch, one 
 
 ## Stack
 - TypeScript strict everywhere. pnpm workspaces.
-- `apps/web`: React + Vite + Tailwind + React Router + TanStack Query. PWA via vite-plugin-pwa, offline outbox via Dexie.
+- `apps/web`: React + Vite + Tailwind + React Router + TanStack Query. Offline: `public/sw.js` (service worker) and `src/offline/idb.ts` (IndexedDB outbox, no dependency). Driver actions are events with a UUID sent to `POST /api/sync`; never call the API directly from a driver screen.
 - `apps/api`: Fastify + Zod + Prisma (PostgreSQL). Every route lives under `/api`.
 - `packages/shared`: the API contract (`src/contract.ts`) and the planning engine (`src/engine/`).
 
@@ -14,7 +14,9 @@ Read this file before every task. Keep changes small: one task, one branch, one 
 - The engine has no npm dependencies. Keep it that way so it runs in the browser, the API and the tests.
 - Every engine rule has a test in `packages/shared/test`. Run `pnpm test` before you finish.
 - Colours, fonts and spacing come from the Tailwind theme tokens copied from Figma. No raw hex values in components.
-- Stay inside your role folder: `apps/web/src/roles/<dispatcher|loader|driver|store>/`. Shared UI goes in `apps/web/src/ui/` (owner: Member 4).
+- Stay inside your role folder: `apps/web/src/roles/<dispatcher|loader|driver|store>/`. Shared UI goes in `apps/web/src/ui/` (owner: Member 4); offline helpers in `apps/web/src/offline/` (owner: Member 3).
+- Goods are counted in packs on order lines (`packages/shared/src/goods.ts`); packs on an order's lines always add up to its units.
+- A sealed or departed trip is locked: the board, defer and auto-allocate refuse to change it.
 - Use real IDs from `data/` (OUT001, VEH014). Units: crates (Fresh), cartons (Style), items (Tech); capacity checks use kg and m3.
 - Times are Sri Lanka local time (Asia/Colombo). Order cutoff 16:00. Fresh window 03:30–08:00 (270 min); Style/Tech 480 min.
 

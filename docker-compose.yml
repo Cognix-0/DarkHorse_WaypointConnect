@@ -20,6 +20,8 @@ services:
       DEMO_DATE: ${DEMO_DATE:-2026-03-25}
       DEMO_MODE: ${DEMO_MODE:-1}
       DEMO_CLOCK: ${DEMO_CLOCK:-06:42}
+      DEMO_LOADER_CLOCK: ${DEMO_LOADER_CLOCK:-02:40}
+      DEMO_STORE_CLOCK: ${DEMO_STORE_CLOCK:-14:18}
       API_PORT: 3000
     depends_on:
       db: { condition: service_healthy }
