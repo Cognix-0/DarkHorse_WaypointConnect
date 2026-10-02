@@ -1,5 +1,9 @@
 // D5 Live tracking: every trip's progress against its stores' windows, and the exceptions that need a decision.
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import type { TPod } from '@waypoint/shared/contract';
+import { api } from '../../api';
+import { Modal } from '../../ui/Modal';
 import type { TLiveAlertDto, TLiveRowDto } from '@waypoint/shared/contract';
 import { Badge, type Tone } from '../../ui/Badge';
 import { Progress } from '../../ui/Meter';
@@ -35,6 +39,7 @@ export function LiveTracking() {
   const act = useAlertAction();
   const sim = useSimulate();
   const toast = useToast();
+  const [pod, setPod] = useState<TPod | null>(null);
   if (q.isLoading) return <Loading />;
   if (q.error || !q.data) return <ErrorBox error={q.error} onRetry={() => q.refetch()} />;
   const d = q.data;
@@ -47,6 +52,10 @@ export function LiveTracking() {
     } catch (e) { toast({ tone: 'bad', title: 'Simulation not available', body: (e as Error).message }); }
   }
   async function doAction(a: TLiveAlertDto, action: string, label: string) {
+    if (action === 'view_pod') {
+      try { setPod(await api<TPod>(`/live/pod/${a.stopId}`)); } catch (e) { toast({ tone: 'bad', title: 'No proof of delivery', body: (e as Error).message }); }
+      return;
+    }
     try {
       await act.mutateAsync({ id: a.id, action });
       toast({ tone: 'ok', title: `${label}: done`, body: action === 'notify_store' ? 'The store manager sees it on their screen now.' : undefined });
@@ -129,6 +138,13 @@ export function LiveTracking() {
             })}
           </section>
         </div>
+      )}
+      {pod && (
+        <Modal title={`Proof of delivery · ${pod.vehicleId}`} onClose={() => setPod(null)} footer={<button className="btn-primary" onClick={() => setPod(null)}>Close</button>}>
+          <p>Delivered {new Date(pod.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Colombo' })} by {pod.driverName ?? 'the driver'} · received by <strong className="text-ink">{pod.receiverName ?? '—'}</strong></p>
+          {pod.photo ? <img src={pod.photo} alt="Goods at delivery" className="w-full rounded-lg border border-line" /> : <p className="text-ink-3">No photo was taken.</p>}
+          {pod.signature && <img src={pod.signature} alt="Signature" className="h-20 bg-white border border-line rounded-lg" />}
+        </Modal>
       )}
     </>
   );

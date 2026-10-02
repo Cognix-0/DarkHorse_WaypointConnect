@@ -26,3 +26,6 @@ export const REASON_LABEL: Record<string, string> = {
 export const DOCK_LABEL: Record<string, string> = { rear_dock: 'Rear dock', street: 'Street', mall_bay: 'Mall bay' };
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
+
+/** "boxes" → "box", "bags" → "bag" (pack names in the goods catalogue) */
+export const singular = (p: string) => (p.endsWith('xes') ? p.slice(0, -2) : p.replace(/s$/, ''));

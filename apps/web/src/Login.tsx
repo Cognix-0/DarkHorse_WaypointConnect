@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type { TLoginResponse } from '@waypoint/shared/contract';
 import { api, setSession } from './api';
 
@@ -40,6 +40,7 @@ export function Login() {
         </label>
         {error && <p role="alert" className="text-bad text-sm font-semibold">{error}</p>}
         <button disabled={busy} className="h-12 rounded-lg bg-primary text-white font-semibold hover:bg-primary-hover disabled:opacity-50">{busy ? 'Signing in…' : 'Sign in'}</button>
+        <Link to="/get-app" className="text-sm font-semibold text-primary justify-self-center">Get the mobile app</Link>
         <p className="text-xs text-ink-3">Demo accounts: {DEMO.map((r) => `${r}@waypoint.demo`).join(', ')}</p>
       </form>
     </main>

@@ -205,7 +205,7 @@ function VehicleColumn({ v, trips, orders, plan, over, dropProps, onDefer }: {
         const bad = plan.violations.filter((x) => x.vehicleId === v.id && (x.tripNo === undefined || x.tripNo === t.tripNo));
         const budget = t.brand === 'Fresh' ? FRESH_BUDGET : DAY_BUDGET;
         return (
-          <div key={t.id} {...dropProps(key, { vehicleId: v.id, tripNo: t.tripNo })}
+          <div key={t.id} {...(locked(t) ? {} : dropProps(key, { vehicleId: v.id, tripNo: t.tripNo }))}
             className={cx('rounded-lg border p-2.5 grid gap-2', over === key ? 'border-primary bg-primary-tint' : bad.length ? 'border-bad bg-bad-tint' : 'border-line bg-sunk')}>
             <div className="flex items-center gap-1.5 text-xs whitespace-nowrap min-w-0">
               <strong className="text-ink">Trip {t.tripNo}</strong>
@@ -213,6 +213,11 @@ function VehicleColumn({ v, trips, orders, plan, over, dropProps, onDefer }: {
               <span className="text-ink-2 truncate">{t.district}</span>
               <span className="ml-auto tabular text-2xs text-ink-3">{t.departAt}–{t.endAt}</span>
             </div>
+            {t.state !== 'open' && (
+              <Badge tone={t.state === 'loading' ? 'warn' : t.state === 'sealed' ? 'ok' : 'info'} className="h-5 text-2xs justify-self-start">
+                {t.state === 'loading' ? 'Loading at the dock' : t.state === 'sealed' ? 'Sealed · locked' : 'On the road · locked'}
+              </Badge>
+            )}
             <div className="grid grid-cols-3 gap-2">
               <Meter label="kg" used={t.weightKg} cap={v.weightCapKg} />
               <Meter label="m³" used={t.volumeM3} cap={v.volumeCapM3} />
@@ -221,7 +226,7 @@ function VehicleColumn({ v, trips, orders, plan, over, dropProps, onDefer }: {
             <ol className="grid gap-1.5">
               {t.stops.map((s) => {
                 const o = orders.get(s.orderId);
-                return o ? <StopCard key={s.orderId} seq={s.seq} eta={s.eta} late={s.late} o={o} onDefer={() => onDefer(o)} /> : null;
+                return o ? <StopCard key={s.orderId} seq={s.seq} eta={s.eta} late={s.late} o={o} onDefer={() => onDefer(o)} locked={locked(t)} /> : null;
               })}
             </ol>
             {bad.map((b, i) => <p key={i} className="text-2xs text-bad font-medium">{b.reason}</p>)}
@@ -245,16 +250,18 @@ const drag = (id: string) => ({
   onDragStart: (e: DragEvent) => { e.dataTransfer.setData('text/plain', id); e.dataTransfer.effectAllowed = 'move'; },
 });
 
-function StopCard({ seq, eta, late, o, onDefer }: { seq: number; eta: string; late: boolean; o: TOrderDto; onDefer: () => void }) {
+const locked = (t: TTripDto) => t.state === 'sealed' || t.state === 'departed';
+
+function StopCard({ seq, eta, late, o, onDefer, locked: isLocked }: { seq: number; eta: string; late: boolean; o: TOrderDto; onDefer: () => void; locked?: boolean }) {
   return (
-    <li {...drag(o.id)} className="group flex items-center gap-2 rounded-md bg-surface border border-line px-2 py-1.5 cursor-grab active:cursor-grabbing" title="Drag to move">
+    <li {...(isLocked ? {} : drag(o.id))} className="group flex items-center gap-2 rounded-md bg-surface border border-line px-2 py-1.5 cursor-grab active:cursor-grabbing" title="Drag to move">
       <span className="grid place-items-center h-5 w-5 rounded-full bg-primary text-white text-2xs font-bold shrink-0">{seq}</span>
       <span className="grid leading-tight min-w-0">
         <span className="text-xs font-semibold text-ink truncate">{o.outlet.id} <span className="font-normal text-ink-3">· {o.units} {unitLabel(o.outlet.brand)}</span></span>
         <span className="text-2xs text-ink-3 truncate">{kg(o.weightKg)}{o.temp === 'chilled' ? ' · chilled' : ''}{o.outlet.parking === 'van_only' ? ' · van only' : ''}{o.deferredYesterday ? ' · skipped last run' : ''}</span>
       </span>
       <span className={cx('ml-auto text-2xs tabular font-semibold', late ? 'text-bad' : 'text-ok')} title={`Window ${o.outlet.windowOpen}–${o.outlet.windowClose}`}>{eta}</span>
-      <button className="hidden group-hover:block text-2xs text-ink-3 hover:text-bad" onClick={onDefer} aria-label={`Defer ${o.outlet.id}`}>Defer</button>
+      {!isLocked && <button className="hidden group-hover:block text-2xs text-ink-3 hover:text-bad" onClick={onDefer} aria-label={`Defer ${o.outlet.id}`}>Defer</button>}
     </li>
   );
 }
