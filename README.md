@@ -59,14 +59,33 @@ The engine enforces every operating constraint in the Challenge Booklet: weight 
 
 Suggest plan places orders in priority order (skipped last run, Fresh chilled, Fresh ambient, Tech, Style), keeps reefers for chilled goods and vans for van-only outlets, and defers what cannot legally fit as `unavoidable`, with the reason.
 
-On the official peak day it serves **72 of 85 orders on 32 trips** and defers 13, and `check_allocation.py` reports **FEASIBILITY: PASSED**.
+On the official peak day it serves **72 of 85 orders on 32 trips** and defers 13, and `check_allocation.py` reports **FEASIBILITY: PASSED**. (In the app the same day serves 75: the database marks a shop as skipped for all its orders, so the priority order differs slightly from the per-row CSV flag.)
 
 ## Status
 
 - [x] Part 1 – Monorepo, Docker, contract, database schema + CSV seed, planning engine with tests, login API, web shell
-- [ ] Part 2 – API endpoints (orders, plans, defer, publish, loader, driver, sync, store, live events) + dispatcher screens
-- [ ] Part 3 – Loader and driver apps, offline outbox and sync (PWA), optional Android APK
+- [x] Part 2 – Dispatcher: API (queue, board, suggest, drag-and-drop checks, defer, second-deferral confirmation, publish, recovery what-ifs, live tracking, capacity forecast, Server-Sent Events) + screens D1–D6 from the Figma file
+- [ ] Part 3 – Loader and driver apps + their API (loader, driver, sync), offline outbox (PWA), optional Android APK
 - [ ] Part 4 – Store manager screens, judge walkthrough, deployment, video
+
+## Dispatcher console (Part 2)
+
+Sign in as `dispatcher@waypoint.demo`. Screens match Figma frames D1–D6 (`docs/screens/` has a capture of each):
+
+| Screen | What the dispatcher does | API |
+| --- | --- | --- |
+| D1 Overview | Today's numbers, demand by brand, both depots, what needs attention | `GET /api/overview` |
+| D2 Order Queue | 85 locked orders in priority order, filters, CSV export, orders after the 16:00 cutoff greyed out; **Auto-allocate & open board** | `GET /api/orders`, `POST /api/plans/suggest` |
+| D3 Planning Board | Drag stops between vehicles and trips. Every drop is checked by the engine; a refused drop shows **Drop blocked** with the exact rule and vehicles that would take it. Weight/volume/time meters per trip, weekly fuel per vehicle, ETAs per stop | `GET /api/board`, `POST /api/plans/check-placement`, `PUT /api/plans/trips`, `POST /api/orders/:id/defer` |
+| D4 Deferrals | Overload banner, three recovery options each re-planned by the engine (re-plan, release a workshop reefer, hire a reefer), the deferral table, and an explicit confirmation for any shop skipped twice; **Confirm & publish** tells every store | `GET /api/deferrals`, `POST /api/deferrals/options/:id`, `POST /api/deferrals/:id/confirm`, `POST /api/plans/publish` |
+| D5 Live Tracking | Trip progress, ETA against each shop's window (on time / at risk / late / offline), alerts with actions | `GET /api/live`, `POST /api/live/alerts/:id/action`, `GET /api/events` (SSE) |
+| D6 Capacity Forecast | Next 3 weeks: chilled demand vs reefer space, projected deferrals per day from the same engine, payday and New Year build-up | `GET /api/forecast` |
+
+Publishing refuses a plan that breaks a rule, leaves an order neither planned nor deferred, or skips a shop twice without confirmation. Re-publishing raises the plan version (drivers refetch on a new version).
+
+**Demo mode** (`DEMO_MODE=1`, `DEMO_CLOCK=06:42` in `.env`): Live Tracking has **Simulate morning**, which plays driver deliveries up to the clock so the walkthrough shows a live morning (one trip late, one offline) before the driver app exists. Real progress comes from the driver app's offline sync in Part 3.
+
+**Timetable:** stop order is earliest-closing window first; ETAs use the booklet trip-time formula, so each trip's ETAs add up to its planned minutes. Fresh trips run inside 03:30–08:00 and a vehicle's second trip starts when the first ends (the planning standard does not count the return leg).
 
 ## Judge walkthrough
 
@@ -74,5 +93,6 @@ Written in Part 4, once every screen is connected.
 
 ## Departures from the Designathon design
 
-None yet. Record any change from the Figma file here.
-# DarkHorse_WaypointConnect
+- The sidebar shows the signed-in dispatcher (seeded as Ruwan Perera); the Figma frame shows "Nimal Perera".
+- Sidebar items use line icons where the Figma frame has placeholder squares.
+- Live Tracking's route column shows brand · district (one district per trip) instead of origin → destination.

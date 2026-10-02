@@ -18,6 +18,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
       DEMO_PASSWORD: ${DEMO_PASSWORD:-waypoint-demo}
       DEMO_DATE: ${DEMO_DATE:-2026-03-25}
+      DEMO_MODE: ${DEMO_MODE:-1}
+      DEMO_CLOCK: ${DEMO_CLOCK:-06:42}
       API_PORT: 3000
     depends_on:
       db: { condition: service_healthy }
