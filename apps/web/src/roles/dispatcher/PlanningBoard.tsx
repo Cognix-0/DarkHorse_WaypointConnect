@@ -139,11 +139,11 @@ export function PlanningBoard() {
         ))}
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-4 items-start">
+      <div className="flex gap-4 overflow-x-auto pb-4 items-start relative max-h-[calc(100vh-240px)] min-h-[500px]">
         <section {...dropProps('unassigned', 'unassigned')} aria-label="Unassigned and deferred orders"
-          className={cx('shrink-0 w-[268px] rounded-xl border border-dashed p-3 grid gap-2 content-start min-h-[300px]', over === 'unassigned' ? 'border-primary bg-primary-tint' : 'border-line-strong bg-sunk')}>
-          <header className="flex items-center">
-            <h2 className="text-[13px] font-semibold">Unassigned</h2>
+          className={cx('sticky left-0 z-20 shrink-0 w-[288px] rounded-xl border border-dashed p-3 grid gap-2 content-start max-h-[calc(100vh-260px)] overflow-y-auto shadow-xl bg-surface border-line-strong', over === 'unassigned' && 'border-primary bg-primary-tint')}>
+          <header className="sticky top-0 z-10 bg-surface pt-0.5 pb-2 flex items-center border-b border-line mb-1">
+            <h2 className="text-[13px] font-semibold text-ink">Unassigned Queue</h2>
             <span className="ml-auto text-2xs text-ink-3">{loose.length} open · {unassigned.length - loose.length} deferred</span>
           </header>
           {unassigned.length === 0 && <p className="text-xs text-ink-3 py-6 text-center">Every order is on a trip.</p>}
@@ -188,8 +188,8 @@ function VehicleColumn({ v, trips, orders, plan, over, dropProps, onDefer }: {
   const kind = `${v.temp === 'reefer' ? 'Reefer' : 'Dry'} ${v.type}`;
   const newKey = `${v.id}|new`;
   return (
-    <section aria-label={`${v.id} ${kind}`} className={cx('shrink-0 w-[288px] card p-3 grid gap-3 content-start', !v.available && 'opacity-60')}>
-      <header className="grid gap-2">
+    <section aria-label={`${v.id} ${kind}`} className={cx('shrink-0 w-[288px] card p-3 grid gap-3 content-start max-h-[calc(100vh-260px)] overflow-y-auto', !v.available && 'opacity-60')}>
+      <header className="sticky top-0 z-10 bg-surface pt-0.5 pb-2 grid gap-2 border-b border-line mb-1">
         <div className="flex items-center gap-2">
           <Icon name="truck" size={16} className="text-ink-3" />
           <strong className="text-[14px]">{v.id}</strong>

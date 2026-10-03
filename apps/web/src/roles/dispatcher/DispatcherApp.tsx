@@ -7,7 +7,7 @@ import { getSession, setSession } from '../../api';
 import { Icon } from '../../ui/Icon';
 import { ToastProvider, useToast } from '../../ui/Toast';
 import { cx } from '../../ui/format';
-import { useLive, useOverview } from './api';
+import { useDispatcherDepot, useLive, useOverview } from './api';
 import { Overview } from './Overview';
 import { OrderQueue } from './OrderQueue';
 import { PlanningBoard } from './PlanningBoard';
@@ -55,6 +55,7 @@ const NAV = [
 function Sidebar({ synced }: { synced: string | null }) {
   const s = getSession();
   const nav = useNavigate();
+  const [depot, setDepot] = useDispatcherDepot();
   const overview = useOverview();
   const live = useLive();
   const counts: Record<string, number> = {
@@ -64,7 +65,7 @@ function Sidebar({ synced }: { synced: string | null }) {
   const initials = (s?.user.name ?? 'D').split(' ').map((p) => p[0]).join('').slice(0, 2);
   return (
     <aside className="bg-nav text-nav-text lg:sticky lg:top-0 lg:h-screen flex lg:flex-col gap-4 px-4 py-4 lg:px-5 lg:py-6 overflow-x-auto">
-      <div className="flex items-center gap-3 shrink-0 lg:mb-6">
+      <div className="flex items-center gap-3 shrink-0 lg:mb-2">
         <span className="grid place-items-center h-10 w-10 rounded-lg bg-surface">
           <img src="/logo-mark.png" alt="" className="w-7" />
         </span>
@@ -73,6 +74,34 @@ function Sidebar({ synced }: { synced: string | null }) {
           <span className="text-xs text-nav-muted">Dispatch Console</span>
         </span>
       </div>
+
+      {/* Depot Switcher */}
+      <div className="bg-white/10 rounded-xl p-2 flex flex-col gap-1.5 shrink-0 lg:mb-3">
+        <span className="text-[10px] font-bold text-nav-muted uppercase tracking-wider px-0.5">Active Depot</span>
+        <div className="grid grid-cols-2 gap-1 bg-black/20 p-1 rounded-lg">
+          <button
+            type="button"
+            className={cx(
+              'h-7 rounded-md text-xs font-bold transition-all flex items-center justify-center',
+              depot === 'Peliyagoda' ? 'bg-primary text-white shadow-sm' : 'text-nav-muted hover:text-white hover:bg-white/5'
+            )}
+            onClick={() => setDepot('Peliyagoda')}
+          >
+            Peliyagoda
+          </button>
+          <button
+            type="button"
+            className={cx(
+              'h-7 rounded-md text-xs font-bold transition-all flex items-center justify-center',
+              depot === 'Kandy' ? 'bg-primary text-white shadow-sm' : 'text-nav-muted hover:text-white hover:bg-white/5'
+            )}
+            onClick={() => setDepot('Kandy')}
+          >
+            Kandy
+          </button>
+        </div>
+      </div>
+
       <nav aria-label="Dispatcher" className="flex lg:grid gap-1 lg:gap-2">
         {NAV.map((n) => {
           const c = 'badge' in n ? counts[n.badge] ?? 0 : 0;
@@ -93,7 +122,7 @@ function Sidebar({ synced }: { synced: string | null }) {
         <span className="grid place-items-center h-9 w-9 rounded-full bg-teal text-white text-xs font-bold" aria-hidden="true">{initials}</span>
         <span className="hidden sm:grid leading-tight text-xs">
           <strong className="text-[13px] text-white">{s?.user.name}</strong>
-          <span className="text-nav-muted">Dispatcher · {s?.user.depot ?? 'Peliyagoda'} DC</span>
+          <span className="text-nav-muted">Dispatcher · {depot} DC</span>
           <span className="text-ok-online">Online{synced ? ` · synced ${synced}` : ''}</span>
         </span>
         <button className="ml-1 p-2 rounded-lg text-nav-muted hover:text-white hover:bg-white/5" title="Sign out" aria-label="Sign out"

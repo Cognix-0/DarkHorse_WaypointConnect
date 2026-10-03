@@ -17,3 +17,29 @@
   .chip-on { @apply bg-primary text-white border-primary hover:border-primary; }
   .input { @apply h-9 px-3 rounded-lg border border-line-strong bg-surface text-[13px] text-ink placeholder:text-ink-4; }
 }
+
+/* Sleek thin & semi-transparent scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* Firefox support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
