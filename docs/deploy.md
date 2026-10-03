@@ -85,7 +85,7 @@ Caddy gets a Let's Encrypt certificate on the first request to `https://<DOMAIN>
 
 ## Database access for the team
 
-The database runs in the `db` container on the server. Its port is open only on the server itself (`127.0.0.1:5432`), never to the internet, so each teammate reaches it through SSH with their own key. No database password travels over the network unencrypted, and removing a key removes that person's access.
+The database runs in the `db` container on the server. Its port is open only on the server itself (`127.0.0.1:5433`), never to the internet, so each teammate reaches it through SSH with their own key. No database password travels over the network unencrypted, and removing a key removes that person's access.
 
 **1. Each teammate makes an SSH key** (once, on their own computer) and sends you the **public** half:
 
@@ -107,18 +107,20 @@ grep DB_PASSWORD /opt/waypoint/.env       # share this password privately (not i
 | --- | --- |
 | Connection type | PostgreSQL **over SSH** |
 | SSH host / user / key | `<server IP>` / `root` / `~/.ssh/id_ed25519` |
-| Database host / port | `127.0.0.1` / `5432` |
+| Database host / port | `127.0.0.1` / `5433` |
 | User / database | `postgres` / `waypoint` |
 | Password | the `DB_PASSWORD` from step 2 |
 
-Or a tunnel by hand, then any tool on `localhost:5433`:
+Or a tunnel by hand, then any tool on `localhost:5434`:
 
 ```bash
-ssh -N -L 5433:127.0.0.1:5432 root@<server IP>
-DATABASE_URL="postgresql://postgres:<DB_PASSWORD>@localhost:5433/waypoint" pnpm prisma studio   # table editor in the browser
+ssh -N -L 5434:127.0.0.1:5433 root@<server IP>
+DATABASE_URL="postgresql://postgres:<DB_PASSWORD>@localhost:5434/waypoint" pnpm prisma studio   # table editor in the browser
 ```
 
 To remove someone: delete their line from `~/.ssh/authorized_keys` on the server. To change the database password after someone leaves: `docker compose exec db psql -U postgres -c "ALTER USER postgres PASSWORD 'new'"`, put the same value in `.env` as `DB_PASSWORD`, then `docker compose up -d api`.
+
+Your own laptop's copy is on `localhost:5433` (no SSH needed). If 5433 is also taken, set `DB_HOST_PORT=5440` in `.env`.
 
 For day-to-day coding, everyone should still run their own local copy (`docker compose up` on their machine), so experiments never touch the shared demo data.
 
