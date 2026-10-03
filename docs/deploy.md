@@ -83,6 +83,45 @@ Caddy gets a Let's Encrypt certificate on the first request to `https://<DOMAIN>
 - [ ] On a phone: driver app → *Add to Home Screen*, airplane mode, reopen: it still loads.
 - [ ] Run the README judge walkthrough once end to end, then reset (below) so judges start clean.
 
+## Database access for the team
+
+The database runs in the `db` container on the server. Its port is open only on the server itself (`127.0.0.1:5432`), never to the internet, so each teammate reaches it through SSH with their own key. No database password travels over the network unencrypted, and removing a key removes that person's access.
+
+**1. Each teammate makes an SSH key** (once, on their own computer) and sends you the **public** half:
+
+```bash
+ssh-keygen -t ed25519 -C "name@team"      # press Enter for the defaults
+cat ~/.ssh/id_ed25519.pub                 # send this line (never the file without .pub)
+```
+
+**2. You add each key on the server** (droplet console):
+
+```bash
+echo 'ssh-ed25519 AAAA... name@team' >> ~/.ssh/authorized_keys
+grep DB_PASSWORD /opt/waypoint/.env       # share this password privately (not in Git, not in a group chat)
+```
+
+**3. Teammates connect** with TablePlus, DBeaver or pgAdmin:
+
+| Field | Value |
+| --- | --- |
+| Connection type | PostgreSQL **over SSH** |
+| SSH host / user / key | `<server IP>` / `root` / `~/.ssh/id_ed25519` |
+| Database host / port | `127.0.0.1` / `5432` |
+| User / database | `postgres` / `waypoint` |
+| Password | the `DB_PASSWORD` from step 2 |
+
+Or a tunnel by hand, then any tool on `localhost:5433`:
+
+```bash
+ssh -N -L 5433:127.0.0.1:5432 root@<server IP>
+DATABASE_URL="postgresql://postgres:<DB_PASSWORD>@localhost:5433/waypoint" pnpm prisma studio   # table editor in the browser
+```
+
+To remove someone: delete their line from `~/.ssh/authorized_keys` on the server. To change the database password after someone leaves: `docker compose exec db psql -U postgres -c "ALTER USER postgres PASSWORD 'new'"`, put the same value in `.env` as `DB_PASSWORD`, then `docker compose up -d api`.
+
+For day-to-day coding, everyone should still run their own local copy (`docker compose up` on their machine), so experiments never touch the shared demo data.
+
 ## Everyday commands
 
 | Need | Command |
