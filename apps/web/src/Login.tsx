@@ -12,8 +12,8 @@ const FLOW_STEPS = [
 
 export function Login() {
   const nav = useNavigate();
-  const [email, setEmail] = useState('dispatcher.peliyagoda@waypoint.lk');
-  const [password, setPassword] = useState('waypoint-demo');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [keepSigned, setKeepSigned] = useState(true);
   const [error, setError] = useState<string | null>(null);
