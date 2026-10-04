@@ -333,7 +333,7 @@ function DeferModal({ order, onClose }: { order: TOrderDto; onClose: () => void 
             onClick={autoFill}
             className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
           >
-            <span>Auto-generate reason ✨</span>
+            <span>Auto-generate reason</span>
           </button>
         </div>
         <textarea className="input h-20 py-2 text-xs" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
