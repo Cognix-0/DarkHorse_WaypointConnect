@@ -6,7 +6,7 @@ import type { TLiveEvent } from '@waypoint/shared/contract';
 import { getSession, setSession } from '../../api';
 import { Icon } from '../../ui/Icon';
 import { ToastProvider, useToast } from '../../ui/Toast';
-import { cx } from '../../ui/format';
+import { colomboTime, cx } from '../../ui/format';
 import { useDispatcherDepot, useLive, useOverview } from './api';
 import { Overview } from './Overview';
 import { OrderQueue } from './OrderQueue';
@@ -147,7 +147,7 @@ function useLiveEvents() {
     const token = getSession()?.token;
     if (!token) return;
     const es = new EventSource(`/api/events?token=${encodeURIComponent(token)}`);
-    const stamp = () => setSynced(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+    const stamp = () => setSynced(colomboTime());
     es.onopen = stamp;
     es.onmessage = (m) => {
       stamp();

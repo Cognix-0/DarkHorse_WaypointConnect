@@ -19,6 +19,10 @@ if [ "$(free -m | awk '/Mem:/{print $2}')" -lt 3000 ] && ! swapon --show | grep 
   grep -q /swapfile /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
 
+# Server clock: synced to internet time, shown in Sri Lanka time.
+timedatectl set-timezone Asia/Colombo || true
+timedatectl set-ntp true || true
+
 command -v docker >/dev/null || { say "Installing Docker"; curl -fsSL https://get.docker.com | sh; }
 command -v git >/dev/null || { apt-get update -qq && apt-get install -y -qq git; }
 if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then ufw allow 80/tcp >/dev/null; ufw allow 443/tcp >/dev/null; fi

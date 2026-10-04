@@ -11,6 +11,7 @@ import { ProofOfDelivery } from './ProofOfDelivery';
 import { ReportProblem } from './ReportProblem';
 import { SyncScreen } from './SyncScreen';
 import { BiometricGate } from './BiometricLock';
+import { colomboTime } from '../../ui/format';
 
 export function DriverApp() {
   return (
@@ -59,7 +60,7 @@ function BackOnline() {
               <li key={i} className="flex items-center gap-2 text-[14px]">
                 <span className="text-ok font-bold" aria-hidden="true">✓</span>
                 <span className="font-medium">{x.label}</span>
-                <span className="ml-auto text-[12px] text-drv-muted">{new Date(x.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="ml-auto text-[12px] text-drv-muted">{colomboTime(x.at)}</span>
               </li>
             ))}
           </ul>

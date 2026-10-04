@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { TDriverRouteResponse, TSyncEvent, TSyncResponse } from '@waypoint/shared/contract';
 import { api, ApiError } from '../../api';
 import { kvGet, kvSet, outboxAll, outboxDelete, outboxPut } from '../../offline/idb';
+import { colomboTime } from '../../ui/format';
 
 export type Queued = TSyncEvent & { label: string; queuedAt: string };
 export type SyncedItem = { label: string; at: string };
@@ -199,5 +200,5 @@ export function DriverStore({ children }: { children: ReactNode }) {
 }
 
 /** Phone clock as HH:MM. */
-export const clock = (d = new Date()) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+export const clock = (d = new Date()) => colomboTime(d);
 export const minutesSince = (iso: string | null) => (iso ? Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000)) : 0);

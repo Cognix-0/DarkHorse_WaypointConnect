@@ -1,7 +1,7 @@
 // M1 · Today's runs
 import { useNavigate } from 'react-router-dom';
 import type { TDriverTripDto } from '@waypoint/shared/contract';
-import { shortDate } from '../../ui/format';
+import { colomboHour, shortDate } from '../../ui/format';
 import { useDriver } from './store';
 import { BiometricSetting } from './BiometricLock';
 import { activeTrip, BigButton, Card, Chip, Notice, Screen, Stat, tempLabel } from './ui';
@@ -14,7 +14,7 @@ export function TodaysRuns() {
   const d = useDriver();
   const nav = useNavigate();
   const r = d.route;
-  const hour = new Date().getHours();
+  const hour = colomboHour();
   const hello = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const first = (r?.driverName ?? '').split(' ')[0];
 
