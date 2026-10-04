@@ -415,3 +415,10 @@ model Notification {
   @@index([outletId, read])
   @@index([role, createdAt])
 }
+
+/// Small system settings set by the admin, e.g. "demo" (demo mode on/off, its day and clocks).
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

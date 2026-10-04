@@ -8,6 +8,7 @@ import { cx } from '../../ui/format';
 import { System } from './System';
 import { Fleet } from './Fleet';
 import { Accounts } from './Accounts';
+import { Demo } from './Demo';
 
 export function AdminApp() {
   return (
@@ -19,6 +20,7 @@ export function AdminApp() {
             <Route index element={<System />} />
             <Route path="fleet" element={<Fleet />} />
             <Route path="accounts" element={<Accounts />} />
+            <Route path="demo" element={<Demo />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>
         </main>
@@ -34,6 +36,7 @@ const Glyph = ({ d }: { d: string }) => (
 const NAV: { to: string; label: string; icon: ReactNode; end?: boolean }[] = [
   { to: '/admin', label: 'System', end: true, icon: <Glyph d="M12 3a9 9 0 1 0 9 9M12 12l5-5M3 12h2M12 3v2M19 12h2" /> },
   { to: '/admin/fleet', label: 'Vehicles & drivers', icon: <Icon name="truck" className="text-nav-muted" /> },
+  { to: '/admin/demo', label: 'Demo mode', icon: <Glyph d="M5 4l14 8-14 8V4Z" /> },
   { to: '/admin/accounts', label: 'Accounts', icon: <Glyph d="M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm13 9v-1a4 4 0 0 0-3-3.9M16 4.1a3 3 0 0 1 0 5.8" /> },
 ];
 
