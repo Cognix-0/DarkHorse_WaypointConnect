@@ -31,6 +31,25 @@ export const REASON_LABEL: Record<string, string> = {
   no_vehicle: 'No vehicle',
   other: 'Other',
 };
+
+export function generateAutomatedReason(reason: string, outletId?: string): string {
+  switch (reason) {
+    case 'no_reefer_capacity':
+      return `Chilled reefer capacity limit reached for today's run. ${outletId ? `${outletId} order` : 'Your order'} is prioritized first on tomorrow morning's reefer trip.`;
+    case 'vehicle_full':
+      return `All vehicle payload & volume capacity fully allocated for today. ${outletId ? `${outletId} order` : 'Your order'} is scheduled for priority dispatch on tomorrow's first run.`;
+    case 'time_window':
+      return `Delivery time window constraint with current vehicle routing schedules today. Rescheduled for earliest arrival tomorrow morning.`;
+    case 'fuel_quota':
+      return `Depot weekly vehicle fuel quota limit reached for this route today. Scheduled for immediate delivery on the next run.`;
+    case 'no_vehicle':
+      return `No available transport unit for this route today. Prioritized for immediate delivery on the next scheduled run.`;
+    case 'other':
+    default:
+      return `Delivery deferred due to operational schedule optimization. Scheduled for priority delivery on tomorrow's run.`;
+  }
+}
+
 export const DOCK_LABEL: Record<string, string> = { rear_dock: 'Rear dock', street: 'Street', mall_bay: 'Mall bay' };
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');

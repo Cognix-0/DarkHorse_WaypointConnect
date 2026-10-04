@@ -9,7 +9,7 @@ import { Meter } from '../../ui/Meter';
 import { Modal } from '../../ui/Modal';
 import { Empty, ErrorBox, Loading } from '../../ui/States';
 import { useToast } from '../../ui/Toast';
-import { cx, kg, num, pct, REASON_LABEL, shortDate, tonnes, unitLabel } from '../../ui/format';
+import { cx, generateAutomatedReason, kg, num, pct, REASON_LABEL, shortDate, tonnes, unitLabel } from '../../ui/format';
 import { useConfirmDeferral, useOption, usePublish, useReview } from './api';
 import { PageHeader } from './PageHeader';
 
@@ -158,7 +158,13 @@ export function DeferralReview() {
 function ConfirmModal({ row, onClose }: { row: TDeferralRowDto; onClose: () => void }) {
   const confirm = useConfirmDeferral();
   const toast = useToast();
-  const [note, setNote] = useState(row.note ?? '');
+  const defaultNote = row.note || generateAutomatedReason(row.reason, row.order.outlet.id);
+  const [note, setNote] = useState(defaultNote);
+
+  function autoFill() {
+    setNote(generateAutomatedReason(row.reason, row.order.outlet.id));
+  }
+
   async function submit() {
     try {
       await confirm.mutateAsync({ id: row.id, note });
@@ -166,14 +172,25 @@ function ConfirmModal({ row, onClose }: { row: TDeferralRowDto; onClose: () => v
       onClose();
     } catch (e) { toast({ tone: 'bad', title: 'Not confirmed', body: (e as Error).message }); }
   }
+
   return (
     <Modal title={`Skip ${row.order.outlet.id} a second time?`} onClose={onClose}
       footer={<><button className="btn-secondary" onClick={onClose}>Cancel</button><button className="btn-primary" disabled={note.trim().length < 3 || confirm.isPending} onClick={submit}>Confirm second deferral</button></>}>
       <p><strong className="text-ink">{row.order.outlet.id}</strong> ({row.order.outlet.district}) was not delivered on the last run either. {REASON_LABEL[row.reason]}: {row.detail}</p>
       <p>Before you confirm, try dragging it onto a vehicle on the planning board, or request option B or C above.</p>
-      <label className="grid gap-1 font-medium text-ink">Message to the store manager (required)
-        <textarea className="input h-24 py-2" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="e.g. Payday peak: all reefers are full. Your order is first on tomorrow's run." />
-      </label>
+      <div className="grid gap-1 font-medium text-ink">
+        <div className="flex items-center justify-between">
+          <label>Message to the store manager (required)</label>
+          <button
+            type="button"
+            onClick={autoFill}
+            className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+          >
+            <span>Auto-generate reason ✨</span>
+          </button>
+        </div>
+        <textarea className="input h-24 py-2 text-xs" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="e.g. Payday peak: all reefers are full. Your order is first on tomorrow's run." />
+      </div>
     </Modal>
   );
 }

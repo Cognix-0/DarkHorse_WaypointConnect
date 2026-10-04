@@ -10,7 +10,7 @@ import { Meter } from '../../ui/Meter';
 import { Modal } from '../../ui/Modal';
 import { Empty, ErrorBox, Loading } from '../../ui/States';
 import { useToast } from '../../ui/Toast';
-import { cx, kg, m3, num, REASON_LABEL, shortDate, unitLabel } from '../../ui/format';
+import { cx, generateAutomatedReason, kg, m3, num, REASON_LABEL, shortDate, unitLabel } from '../../ui/format';
 import { checkPlacement, useBoard, useDefer, usePublish, useSaveTrips, useSuggest } from './api';
 import { PageHeader } from './PageHeader';
 
@@ -293,10 +293,21 @@ function OrderCard({ o, deferral, onDefer }: { o: TOrderDto; deferral?: TPlanDto
 function DeferModal({ order, onClose }: { order: TOrderDto; onClose: () => void }) {
   const defer = useDefer();
   const toast = useToast();
-  const [reason, setReason] = useState<TDeferralReason>(order.temp === 'chilled' ? 'no_reefer_capacity' : 'vehicle_full');
-  const [note, setNote] = useState('');
+  const initialReason: TDeferralReason = order.temp === 'chilled' ? 'no_reefer_capacity' : 'vehicle_full';
+  const [reason, setReason] = useState<TDeferralReason>(initialReason);
+  const [note, setNote] = useState(() => generateAutomatedReason(initialReason, order.outlet.id));
   const [confirm, setConfirm] = useState(false);
   const second = order.deferredYesterday;
+
+  function handleReasonChange(newReason: TDeferralReason) {
+    setReason(newReason);
+    setNote(generateAutomatedReason(newReason, order.outlet.id));
+  }
+
+  function autoFill() {
+    setNote(generateAutomatedReason(reason, order.outlet.id));
+  }
+
   async function submit() {
     try {
       await defer.mutateAsync({ orderId: order.id, reason, note: note || undefined, confirmSecondDeferral: second ? confirm : undefined });
@@ -304,18 +315,29 @@ function DeferModal({ order, onClose }: { order: TOrderDto; onClose: () => void 
       onClose();
     } catch (e) { toast({ tone: 'bad', title: 'Not deferred', body: (e as Error).message }); }
   }
+
   return (
     <Modal title={`Defer ${order.ref} · ${order.outlet.id}`} onClose={onClose}
       footer={<><button className="btn-secondary" onClick={onClose}>Cancel</button><button className="btn-primary" disabled={defer.isPending || (second && (!confirm || note.trim().length < 3))} onClick={submit}>Defer order</button></>}>
       <p>{order.units} {unitLabel(order.outlet.brand)} for {order.outlet.id} ({order.outlet.district}) move to the next run. This is recorded as your choice unless no vehicle could take it.</p>
       <label className="grid gap-1 font-medium text-ink">Reason
-        <select className="input" value={reason} onChange={(e) => setReason(e.target.value as TDeferralReason)}>
+        <select className="input" value={reason} onChange={(e) => handleReasonChange(e.target.value as TDeferralReason)}>
           {Object.entries(REASON_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
       </label>
-      <label className="grid gap-1 font-medium text-ink">Note for the store manager {second ? '(required)' : '(optional)'}
-        <textarea className="input h-20 py-2" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
-      </label>
+      <div className="grid gap-1">
+        <div className="flex items-center justify-between">
+          <label className="font-medium text-ink">Note for the store manager {second ? '(required)' : '(optional)'}</label>
+          <button
+            type="button"
+            onClick={autoFill}
+            className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+          >
+            <span>Auto-generate reason ✨</span>
+          </button>
+        </div>
+        <textarea className="input h-20 py-2 text-xs" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
+      </div>
       {second && (
         <label className="flex items-start gap-2 rounded-lg bg-bad-tint p-3 text-bad">
           <input type="checkbox" className="mt-0.5" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
