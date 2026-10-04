@@ -40,6 +40,7 @@ jobs:
 
       - name: App icon
         run: |
+          command -v convert >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick >/dev/null; }
           rm -rf android/app/src/main/res/mipmap-anydpi-v26
           for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
             dir=android/app/src/main/res/mipmap-${d%%:*}; size=${d##*:}
