@@ -12,7 +12,7 @@ import { storeRoutes } from './routes/store.ts';
 import { adminRoutes } from './routes/admin.ts';
 import { HttpError } from './plans.ts';
 import { prisma } from './db.ts';
-import { today } from './reference.ts';
+import { today, workingDay } from './reference.ts';
 import { buildDemoDay } from '../../../prisma/demo-day.ts';
 
 // bodyLimit: driver sync batches carry small photos and signatures.
@@ -30,10 +30,10 @@ app.setErrorHandler((err, _req, reply) => {
   return reply.code(status).send({ error: status === 500 ? 'Something went wrong on the server. Try again.' : error.message ?? 'Request failed' });
 });
 
-// Every screen shows today. The first request of a new day builds that day's orders (once per day and process).
+// The first request of a new day builds that day's orders (once per day and process): today's (stores) and the
+// run being worked on (from the 16:00 cutoff that is the next run, so the dispatcher can plan it).
 const builtDays = new Map<string, Promise<boolean>>();
-const ensureToday = () => {
-  const date = today();
+const ensureDay = (date: string) => {
   let job = builtDays.get(date);
   if (!job) {
     job = buildDemoDay(prisma, date).catch((err) => { builtDays.delete(date); app.log.error(err); return false; });
@@ -41,6 +41,7 @@ const ensureToday = () => {
   }
   return job;
 };
+const ensureToday = async () => { await ensureDay(today()); await ensureDay(workingDay()); };
 
 // Every route lives under /api (Caddy forwards /api/* here).
 await app.register(async (api) => {

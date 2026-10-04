@@ -5,7 +5,7 @@ import type { TPlanChangeRow } from '@waypoint/shared/contract';
 import { Badge } from '../../ui/Badge';
 import { Empty, ErrorBox, Loading } from '../../ui/States';
 import { useToast } from '../../ui/Toast';
-import { cx } from '../../ui/format';
+import { colomboTime, cx } from '../../ui/format';
 import { useAck, useChanges, useMarkMoved, useVehicles } from './api';
 
 type F = 'all' | 'to_move' | 'moved' | 'added' | 'not_picked';
@@ -23,7 +23,7 @@ export function PlanChanges() {
   const d = q.data;
   const active = d.rows.filter((r) => r.state !== 'not_picked' && (f === 'all' || r.state === f));
   const quiet = d.rows.filter((r) => r.state === 'not_picked' && (f === 'all' || f === 'not_picked'));
-  const at = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
+  const at = (iso: string | null) => (iso ? colomboTime(iso) : '');
 
   async function acknowledge() {
     try {

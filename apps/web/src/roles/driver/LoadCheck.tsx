@@ -2,6 +2,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDriver, uuid } from './store';
 import { BigButton, Card, Chip, DOCK, Notice, Screen, SeqDot } from './ui';
+import { colomboTime } from '../../ui/format';
 
 export function LoadCheck() {
   const { tripId } = useParams();
@@ -19,7 +20,7 @@ export function LoadCheck() {
   return (
     <Screen
       title={`Load check · Trip ${t.tripNo}`}
-      sub={sealed ? `Loaded by ${t.loadedBy ?? 'the loader'} at Bay ${t.bay}${t.sealedAt ? ` · ${new Date(t.sealedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}` : `Being loaded at Bay ${t.bay}${t.loadedBy ? ` by ${t.loadedBy}` : ''}`}
+      sub={sealed ? `Loaded by ${t.loadedBy ?? 'the loader'} at Bay ${t.bay}${t.sealedAt ? ` · ${colomboTime(t.sealedAt)}` : ''}` : `Being loaded at Bay ${t.bay}${t.loadedBy ? ` by ${t.loadedBy}` : ''}`}
       footer={
         <>
           {t.status === 'sealed' && <BigButton onClick={depart}>Confirm load &amp; depart</BigButton>}

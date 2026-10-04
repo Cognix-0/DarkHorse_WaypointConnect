@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { compressImage } from '../../offline/image';
-import { cx } from '../../ui/format';
+import { colomboTime, cx } from '../../ui/format';
 import { useDriver, uuid } from './store';
 import { BigButton, Card, findStop, Notice, Screen } from './ui';
 
@@ -27,7 +27,7 @@ export function ProofOfDelivery() {
   async function onPhoto(file?: File) {
     if (!file) return;
     setPhoto(await compressImage(file));
-    setPhotoAt(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+    setPhotoAt(colomboTime());
   }
   async function confirm() {
     setBusy(true);

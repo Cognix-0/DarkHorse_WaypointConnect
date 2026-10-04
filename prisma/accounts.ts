@@ -1,12 +1,12 @@
-// Every sign-in account: one administrator, one per vehicle (its assigned driver), one per store, and per depot
-// one dispatcher and three loaders. Used by the seed and by scripts/credentials.ts, so both always agree.
+// Every sign-in account: one administrator, one dispatcher (switches between both depots), one per vehicle (its
+// assigned driver), one per store, and three loaders per depot. Used by the seed and by scripts/credentials.ts, so both always agree.
 //
 // Passwords are unique per account and never stored in plain text: each is derived from ACCOUNT_SECRET
 // (falls back to JWT_SECRET) and the email, so the seed can reset the hashes on every start and
 // `pnpm credentials` can print the same list again on the server.
 import { createHmac, randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { parseCsv } from '../packages/shared/src/engine/reference.ts';
 
 export type AccountRole = 'dispatcher' | 'loader' | 'driver' | 'store' | 'admin';
@@ -24,7 +24,17 @@ export const EMAIL_DOMAIN = 'waypoint.lk';
 export const DEPOTS: DepotName[] = ['Peliyagoda', 'Kandy'];
 export const LOADERS_PER_DEPOT = 3;
 
-const csv = (f: string) => parseCsv(readFileSync(join(process.cwd(), 'data', f), 'utf8'));
+/**
+ * The repository's data/ folder, found from wherever the process runs: the seed and scripts start in the repo
+ * root, the API in apps/api.
+ */
+export function dataDir(): string {
+  for (let dir = process.cwd(); ; dir = dirname(dir)) {
+    if (existsSync(join(dir, 'data', 'vehicles.csv'))) return join(dir, 'data');
+    if (dirname(dir) === dir) throw new Error(`data/vehicles.csv not found above ${process.cwd()}`);
+  }
+}
+const csv = (f: string) => parseCsv(readFileSync(join(dataDir(), f), 'utf8'));
 
 // ---- people
 const FIRST = ['Ayesha', 'Dilani', 'Tharindu', 'Chamari', 'Sanjeewa', 'Nadeesha', 'Kavinda', 'Ishara', 'Roshan', 'Malsha', 'Supun', 'Hiruni', 'Asela', 'Fathima', 'Ravi', 'Priyanka'];
@@ -69,7 +79,6 @@ export function driverRoster(vehicleIds: string[]): { id: string; name: string; 
   }));
 }
 
-const DISPATCHERS: Record<DepotName, string> = { Peliyagoda: 'Ruwan Perera', Kandy: 'Anjali Wickramasinghe' };
 const LOADERS: Record<DepotName, string[]> = {
   Peliyagoda: ['Kasun Silva', 'Lahiru Fernando', 'Chathura Mendis'],
   Kandy: ['Isuru Bandara', 'Thilina Rathnayake', 'Gayan Ekanayake'],
@@ -80,10 +89,11 @@ export function allAccounts(): Account[] {
   const drivers = driverNames(vehicles.map((v) => v.vehicle_id!));
   const out: Account[] = [
     { email: `admin@${EMAIL_DOMAIN}`, name: 'System Administrator', role: 'admin', depot: null, outletId: null, vehicleId: null },
+    // One dispatcher for the whole company: no fixed depot, so the console shows the depot switcher.
+    { email: `dispatcher@${EMAIL_DOMAIN}`, name: 'Ruwan Perera', role: 'dispatcher', depot: null, outletId: null, vehicleId: null },
   ];
   for (const depot of DEPOTS) {
     const d = depot.toLowerCase();
-    out.push({ email: `dispatcher.${d}@${EMAIL_DOMAIN}`, name: DISPATCHERS[depot], role: 'dispatcher', depot, outletId: null, vehicleId: null });
     for (let i = 1; i <= LOADERS_PER_DEPOT; i++) {
       out.push({ email: `loader${i}.${d}@${EMAIL_DOMAIN}`, name: LOADERS[depot][i - 1]!, role: 'loader', depot, outletId: null, vehicleId: null });
     }
@@ -113,6 +123,9 @@ export function passwordFor(email: string, secret = accountSecret()): string {
   for (let i = 0; i < 12; i++) p += ALPHABET[mac[i]! % ALPHABET.length];
   return `${p.slice(0, 4)}-${p.slice(4, 8)}-${p.slice(8, 12)}`;
 }
+
+/** Accounts from earlier versions that no longer exist (removed by the seed). */
+export const RETIRED_EMAILS = [`dispatcher.peliyagoda@${EMAIL_DOMAIN}`, `dispatcher.kandy@${EMAIL_DOMAIN}`];
 
 /** A fresh random password in the same readable format, for an admin reset or a new account. */
 export function randomPassword(): string {

@@ -6,12 +6,12 @@ import { Badge, brandTone } from '../../ui/Badge';
 import { compressImage } from '../../offline/image';
 import { ErrorBox, Loading } from '../../ui/States';
 import { useToast } from '../../ui/Toast';
-import { cx, num, shortDate } from '../../ui/format';
+import { colomboTime, cx, num, shortDate } from '../../ui/format';
 import { useReport, useSeal, useTick, useTrip } from './api';
 import { LAST_TRIP } from './LoaderApp';
 
 const done = (l: TGoodsLineDto) => !!l.loadedAt || l.shortPacks >= l.packs;
-const hhmm = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const hhmm = (iso: string) => colomboTime(iso);
 const toMin = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
 const one = (p: string) => (p.endsWith('xes') ? p.slice(0, -2) : p.replace(/s$/, ''));
 const ORD = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];

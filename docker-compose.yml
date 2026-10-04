@@ -2,6 +2,7 @@
 services:
   db:
     image: postgres:16
+    # The database stays on UTC on purpose: timestamps are stored in UTC and shown in Sri Lanka time by the app.
     environment:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-waypoint}
       POSTGRES_DB: waypoint
@@ -28,12 +29,16 @@ services:
       DEMO_LOADER_CLOCK: ${DEMO_LOADER_CLOCK:-}
       DEMO_STORE_CLOCK: ${DEMO_STORE_CLOCK:-}
       API_PORT: 3000
+      # Logs and `date` in Sri Lanka time. The app itself always computes Asia/Colombo time explicitly.
+      TZ: Asia/Colombo
     depends_on:
       db: { condition: service_healthy }
     restart: unless-stopped
 
   web:
     build: { context: ., dockerfile: apps/web/Dockerfile }
+    # Access logs in Sri Lanka time (UTC+5:30, no daylight saving; POSIX form because Alpine has no zone files)
+    environment: { TZ: "<+0530>-05:30" }
     depends_on: [api]
     restart: unless-stopped
 
@@ -42,6 +47,7 @@ services:
     ports: ["80:80", "443:443"]
     environment:
       DOMAIN: ${DOMAIN:-localhost}
+      TZ: "<+0530>-05:30"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

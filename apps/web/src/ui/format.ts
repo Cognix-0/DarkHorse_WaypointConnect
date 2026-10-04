@@ -5,6 +5,14 @@ export const m3 = (n: number) => `${n.toLocaleString('en-US', { maximumFractionD
 export const num = (n: number) => Math.round(n).toLocaleString('en-US');
 export const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
+/** Every time on screen is Sri Lanka time, whatever the device's own time zone. */
+export const TIME_ZONE = 'Asia/Colombo';
+/** "06:42" (24 h, Sri Lanka time) for a timestamp; now by default. */
+export const colomboTime = (d: Date | string | number = new Date()) =>
+  new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: TIME_ZONE });
+/** Hour of the day (0–23) in Sri Lanka now. */
+export const colomboHour = () => Number(colomboTime().slice(0, 2));
+
 /** "Wed 25 Mar" from YYYY-MM-DD */
 export const shortDate = (iso: string) =>
   new Date(`${iso}T00:00:00.000Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).replace(',', '');

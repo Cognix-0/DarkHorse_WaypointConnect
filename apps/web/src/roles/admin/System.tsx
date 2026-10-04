@@ -30,12 +30,12 @@ export function System() {
 
   return (
     <>
-      <AdminHeader title="System" sub={`Every screen runs on ${shortDate(d.date)} · ${d.clock} ${d.timeZone}`}>
+      <AdminHeader title="System" sub={`Dispatcher, loaders and drivers are on the ${shortDate(d.date)} run · ${d.clock} ${d.timeZone}`}>
         {d.database.ok ? <Badge tone="ok">All systems running</Badge> : <Badge tone="bad">Database not reachable</Badge>}
       </AdminHeader>
 
       <section className="grid gap-4 grid-cols-2 xl:grid-cols-4 mb-5" aria-label="Health">
-        <Tile label="Working day" value={shortDate(d.date)} foot={d.pinnedDate ? 'Pinned by DEMO_DATE (does not follow the calendar)' : 'Follows today in Sri Lanka'} tone={d.pinnedDate ? 'warn' : undefined} />
+        <Tile label="Working run" value={shortDate(d.date)} foot={d.pinnedDate ? 'Pinned by DEMO_DATE (does not follow the calendar)' : "Today's run until the 16:00 cutoff, then the next run"} tone={d.pinnedDate ? 'warn' : undefined} />
         <Tile label="Clock (all roles)" value={d.clock} foot={d.timeZone} />
         <Tile label="Database" value={d.database.ok ? 'Connected' : 'Down'} foot={`answered in ${d.database.latencyMs} ms`} tone={d.database.ok ? 'ok' : 'bad'} />
         <Tile label="API server" value="Running" foot={`up ${uptime(d.uptimeSec)}`} tone="ok" />

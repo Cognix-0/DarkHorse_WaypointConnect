@@ -10,7 +10,7 @@ import {
 import { prisma } from '../db.ts';
 import { requireRole } from '../auth.ts';
 import { HttpError } from '../plans.ts';
-import { colomboNow, dbDate, today } from '../reference.ts';
+import { colomboNow, dbDate, workingDay } from '../reference.ts';
 import { randomPassword } from '../../../../prisma/accounts.ts';
 import { buildDemoDay } from '../../../../prisma/demo-day.ts';
 
@@ -48,7 +48,7 @@ export async function adminRoutes(app: FastifyInstance) {
     let dbOk = true;
     try { await prisma.$queryRaw`SELECT 1`; } catch { dbOk = false; }
     const latencyMs = Date.now() - t0;
-    const date = today();
+    const date = workingDay();
     const [accounts, drivers, assigned, vehicles, plans, orders] = await Promise.all([
       roleCounts(),
       prisma.driver.count(),
@@ -79,7 +79,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   /** Builds today's scenario orders if they are missing (e.g. after the database was emptied). Never duplicates. */
   app.post('/admin/system/rebuild-today', admin, async (): Promise<TRebuildDayResponse> => {
-    const date = today();
+    const date = workingDay();
     const created = await buildDemoDay(prisma, date);
     return { date, created, orders: await prisma.order.count({ where: { deliveryDate: dbDate(date) } }) };
   });
@@ -92,7 +92,8 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.post('/admin/accounts', admin, async (req): Promise<TAccountPasswordResponse> => {
     const body = CreateAccountRequest.parse(req.body);
-    if (body.role !== 'admin' && !body.depot) throw new HttpError(400, 'Choose the depot this person works at.');
+    // A loader works at one depot. A dispatcher may have one, or none (switches between both depots).
+    if (body.role === 'loader' && !body.depot) throw new HttpError(400, 'Choose the depot this loader works at.');
     if (await prisma.user.findUnique({ where: { email: body.email } })) throw new HttpError(409, `${body.email} already has an account.`);
     const password = randomPassword();
     const user = await prisma.user.create({
