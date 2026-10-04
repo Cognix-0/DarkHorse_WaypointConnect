@@ -12,8 +12,8 @@ const FLOW_STEPS = [
 
 export function Login() {
   const nav = useNavigate();
-  const [email, setEmail] = useState('dispatcher.peliyagoda@waypoint.lk');
-  const [password, setPassword] = useState('waypoint-demo');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [keepSigned, setKeepSigned] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -188,7 +188,7 @@ export function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full h-11 pl-9 pr-10 border border-line-strong rounded-xl text-sm text-ink placeholder:text-ink-4 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-soft transition"
-                    placeholder="••••••••••"
+                    placeholder="Enter your password"
                   />
                   <button
                     type="button"
