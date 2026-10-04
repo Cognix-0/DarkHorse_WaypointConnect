@@ -47,8 +47,8 @@ export async function loadDay(date: string, depot: Depot): Promise<Day> {
 
   const [all, afterCutoff, vehicles, plan, prevDeferred] = await Promise.all([
     prisma.order.findMany({ where: { deliveryDate: d, outlet: { depot }, status: { in: [...PLANNABLE] } }, include: orderInclude }),
-    // Placed for the next run after this run's cutoff (shown greyed on the queue)
-    prisma.order.findMany({ where: { deliveryDate: dbDate(nextRun), outlet: { depot }, placedAt: { gt: cutoff, lt: dbDate(date) } }, include: orderInclude }),
+    // Already in for the next run (placed after this run's cutoff): shown greyed on the queue, planned on that run
+    prisma.order.findMany({ where: { deliveryDate: dbDate(nextRun), outlet: { depot }, placedAt: { gt: cutoff }, status: { not: 'cancelled' } }, include: orderInclude }),
     prisma.vehicle.findMany({ where: { depot }, include: { dayStatus: { where: { date: d } } }, orderBy: { id: 'asc' } }),
     prisma.plan.findUnique({ where: { date_depot: { date: d, depot } }, include: planInclude }),
     prisma.order.findMany({ where: { deliveryDate: prev, outlet: { depot }, status: 'deferred' }, select: { outletId: true } }),

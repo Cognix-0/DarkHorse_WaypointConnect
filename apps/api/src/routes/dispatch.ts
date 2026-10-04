@@ -7,14 +7,14 @@ import {
 } from '@waypoint/shared/contract';
 import { requireRole } from '../auth.ts';
 import { prisma } from '../db.ts';
-import { today } from '../reference.ts';
+import { workingDay } from '../reference.ts';
 import { boardVehicles, engineTrips, loadDay, planStatusOf, toOrderDto, toPlanDto, type Day } from '../day.ts';
 import { deferOrder, HttpError, publish, suggest, writeTrips } from '../plans.ts';
 
 /** Every dispatcher screen works on one day and the dispatcher's own depot. */
 export const dayOf = (req: FastifyRequest) => {
   const q = req.query as { date?: string; depot?: string };
-  const date = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : today();
+  const date = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : workingDay();
   // A dispatcher account belongs to one depot; ?depot= only applies to an account without one.
   const depot = (req.user.depot ?? (q.depot === 'Kandy' || q.depot === 'Peliyagoda' ? q.depot : 'Peliyagoda')) as Depot;
   return { date, depot };

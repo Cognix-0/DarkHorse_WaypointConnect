@@ -5,8 +5,8 @@
 // (falls back to JWT_SECRET) and the email, so the seed can reset the hashes on every start and
 // `pnpm credentials` can print the same list again on the server.
 import { createHmac, randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { parseCsv } from '../packages/shared/src/engine/reference.ts';
 
 export type AccountRole = 'dispatcher' | 'loader' | 'driver' | 'store' | 'admin';
@@ -24,7 +24,17 @@ export const EMAIL_DOMAIN = 'waypoint.lk';
 export const DEPOTS: DepotName[] = ['Peliyagoda', 'Kandy'];
 export const LOADERS_PER_DEPOT = 3;
 
-const csv = (f: string) => parseCsv(readFileSync(join(process.cwd(), 'data', f), 'utf8'));
+/**
+ * The repository's data/ folder, found from wherever the process runs: the seed and scripts start in the repo
+ * root, the API in apps/api.
+ */
+export function dataDir(): string {
+  for (let dir = process.cwd(); ; dir = dirname(dir)) {
+    if (existsSync(join(dir, 'data', 'vehicles.csv'))) return join(dir, 'data');
+    if (dirname(dir) === dir) throw new Error(`data/vehicles.csv not found above ${process.cwd()}`);
+  }
+}
+const csv = (f: string) => parseCsv(readFileSync(join(dataDir(), f), 'utf8'));
 
 // ---- people
 const FIRST = ['Ayesha', 'Dilani', 'Tharindu', 'Chamari', 'Sanjeewa', 'Nadeesha', 'Kavinda', 'Ishara', 'Roshan', 'Malsha', 'Supun', 'Hiruni', 'Asela', 'Fathima', 'Ravi', 'Priyanka'];

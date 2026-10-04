@@ -99,6 +99,18 @@ export function loaderNow(): string {
 /** HH:MM in Colombo for a timestamp. */
 export const clockOf = (d: Date) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Colombo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d);
 
+/**
+ * The delivery run the dispatcher, loaders and drivers work on. Until the 16:00 cutoff that is today's run
+ * (loading from 02:40, deliveries 03:30–08:00, live tracking); from the cutoff it is the next run, whose orders
+ * are now locked, so the dispatcher plans and publishes it in the evening. Store managers keep the calendar day.
+ */
+export function workingDay(): string {
+  const d = today();
+  if (process.env.DEMO_DATE) return d;
+  return colomboNow() >= ORDER_CUTOFF ? nextOperatingDay(d) : d;
+}
+export const ORDER_CUTOFF = '16:00';
+
 /** Store manager clock (16:00 cutoff countdown). */
 export function storeNow(): string {
   return process.env.DEMO_STORE_CLOCK || realClock();

@@ -10,7 +10,7 @@ import {
 import { prisma } from '../db.ts';
 import { requireRole } from '../auth.ts';
 import { HttpError } from '../plans.ts';
-import { colomboNow, dbDate, today } from '../reference.ts';
+import { colomboNow, dbDate, workingDay } from '../reference.ts';
 import { randomPassword } from '../../../../prisma/accounts.ts';
 import { buildDemoDay } from '../../../../prisma/demo-day.ts';
 
@@ -48,7 +48,7 @@ export async function adminRoutes(app: FastifyInstance) {
     let dbOk = true;
     try { await prisma.$queryRaw`SELECT 1`; } catch { dbOk = false; }
     const latencyMs = Date.now() - t0;
-    const date = today();
+    const date = workingDay();
     const [accounts, drivers, assigned, vehicles, plans, orders] = await Promise.all([
       roleCounts(),
       prisma.driver.count(),
@@ -79,7 +79,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   /** Builds today's scenario orders if they are missing (e.g. after the database was emptied). Never duplicates. */
   app.post('/admin/system/rebuild-today', admin, async (): Promise<TRebuildDayResponse> => {
-    const date = today();
+    const date = workingDay();
     const created = await buildDemoDay(prisma, date);
     return { date, created, orders: await prisma.order.count({ where: { deliveryDate: dbDate(date) } }) };
   });

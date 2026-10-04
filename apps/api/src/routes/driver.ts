@@ -5,7 +5,7 @@ import { tripsLitres, type Depot } from '@waypoint/shared';
 import { SyncRequest, type TDriverRouteResponse, type TSyncEvent, type TSyncResponse } from '@waypoint/shared/contract';
 import { requireRole } from '../auth.ts';
 import { prisma } from '../db.ts';
-import { baseContext, clockOf, today } from '../reference.ts';
+import { baseContext, clockOf, workingDay } from '../reference.ts';
 import { HttpError } from '../plans.ts';
 import { alertDispatcher, emit, notifyStore } from '../events.ts';
 import { kindOf, opsPlan, refOf, unitLabelOf } from '../ops.ts';
@@ -24,7 +24,7 @@ export async function driverRoutes(app: FastifyInstance) {
     const vehicle = await prisma.vehicle.findUnique({ where: { id: vehicleId } });
     if (!vehicle) throw new HttpError(404, `Vehicle ${vehicleId} not found.`);
     const q = req.query as { date?: string };
-    const date = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : today();
+    const date = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : workingDay();
     const plan = await opsPlan(date, vehicle.depot as Depot);
     const trips = (plan?.trips ?? []).filter((t) => t.vehicleId === vehicleId).sort((a, b) => a.tripNo - b.tripNo);
     const ctx = baseContext;
@@ -82,7 +82,7 @@ export async function driverRoutes(app: FastifyInstance) {
       }
     }
     const v = req.user.vehicleId ? await prisma.vehicle.findUnique({ where: { id: req.user.vehicleId } }) : null;
-    if (v) out.routeVersion = (await opsPlan((req.query as { date?: string }).date ?? today(), v.depot as Depot))?.version ?? 0;
+    if (v) out.routeVersion = (await opsPlan((req.query as { date?: string }).date ?? workingDay(), v.depot as Depot))?.version ?? 0;
     return out;
   });
 }

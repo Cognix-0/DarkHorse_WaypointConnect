@@ -11,9 +11,9 @@ import { join } from 'node:path';
 import type { Brand, PrismaClient, Temp } from '@prisma/client';
 import { parseCsv } from '../packages/shared/src/engine/reference.ts';
 import { goodsLinesFor } from '../packages/shared/src/goods.ts';
-import { DEMO_STORE } from './accounts.ts';
+import { dataDir, DEMO_STORE } from './accounts.ts';
 
-const csv = (f: string) => parseCsv(readFileSync(join(process.cwd(), 'data', f), 'utf8'));
+const csv = (f: string) => parseCsv(readFileSync(join(dataDir(), f), 'utf8'));
 
 /** Today in Colombo, or the pinned DEMO_DATE. */
 export function demoDate(): string {
