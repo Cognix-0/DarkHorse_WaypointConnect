@@ -1,0 +1,14 @@
+# Keep Docker builds to the source: dependencies are installed inside the image (for Linux), never copied from a
+# laptop, and secrets and local files stay out.
+**/node_modules
+**/dist
+.git
+.env
+.env.*
+!.env.example
+**/.DS_Store
+.vscode
+android-build
+out
+credentials*.csv
+*.keystore
