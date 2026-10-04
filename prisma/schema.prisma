@@ -15,6 +15,7 @@ enum Role {
   loader
   driver
   store
+  admin
 }
 
 enum Brand {
@@ -129,10 +130,24 @@ model Vehicle {
   kmPerL           Float
   weeklyFuelQuotaL Float
   fuelUsedWeekL    Float              @default(0)
+  /// copy of the assigned driver's name (shown on every screen); set together with driverId
   driverName       String?
+  /// the one driver assigned to this vehicle by the admin; a driver is never on two vehicles
+  driverId         String?            @unique
+  driver           Driver?            @relation(fields: [driverId], references: [id])
   dayStatus        VehicleDayStatus[]
   trips            Trip[]
   users            User[]
+}
+
+/// A person who drives. The admin assigns at most one driver to each vehicle (Vehicle.driverId is unique).
+model Driver {
+  id        String   @id // DRV001
+  name      String
+  phone     String?
+  licenseNo String?
+  vehicle   Vehicle?
+  createdAt DateTime @default(now())
 }
 
 /// Workshop days. No row = available.
@@ -156,6 +171,11 @@ model User {
   depot        Depot?
   outletId     String?
   vehicleId    String?
+  /// the admin can switch an account off; it then cannot sign in and its open sessions stop working
+  active       Boolean  @default(true)
+  /// the admin set a new password, so the seed must not reset it to the derived one
+  customPassword Boolean @default(false)
+  lastLoginAt  DateTime?
   outlet       Outlet?  @relation(fields: [outletId], references: [id])
   vehicle      Vehicle? @relation(fields: [vehicleId], references: [id])
   createdAt    DateTime @default(now())

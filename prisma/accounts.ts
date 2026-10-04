@@ -1,15 +1,15 @@
-// Every sign-in account: one per vehicle (its assigned driver), one per store, and per depot one dispatcher
-// and three loaders. Used by the seed and by scripts/credentials.ts, so both always agree.
+// Every sign-in account: one administrator, one per vehicle (its assigned driver), one per store, and per depot
+// one dispatcher and three loaders. Used by the seed and by scripts/credentials.ts, so both always agree.
 //
 // Passwords are unique per account and never stored in plain text: each is derived from ACCOUNT_SECRET
 // (falls back to JWT_SECRET) and the email, so the seed can reset the hashes on every start and
 // `pnpm credentials` can print the same list again on the server.
-import { createHmac } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseCsv } from '../packages/shared/src/engine/reference.ts';
 
-export type AccountRole = 'dispatcher' | 'loader' | 'driver' | 'store';
+export type AccountRole = 'dispatcher' | 'loader' | 'driver' | 'store' | 'admin';
 export type DepotName = 'Peliyagoda' | 'Kandy';
 export interface Account {
   email: string;
@@ -42,16 +42,31 @@ export function storeManager(outletId: string): string {
   return `${FIRST[n % FIRST.length]} ${LAST[(n * 7) % LAST.length]}`;
 }
 
+// (i mod 12, (i + i div 12) mod 11) never repeats for the first 132 people.
+const driverName = (i: number) => `${DRIVER_FIRST[i % DRIVER_FIRST.length]} ${DRIVER_LAST[(i + Math.floor(i / DRIVER_FIRST.length)) % DRIVER_LAST.length]}`;
+
 /** One driver per vehicle, never the same person on two vehicles. */
 export function driverNames(vehicleIds: string[]): Map<string, string> {
   const names = new Map<string, string>();
-  vehicleIds.forEach((id, i) => {
-    // (i mod 12, (i + i div 12) mod 11) never repeats for the first 132 vehicles.
-    names.set(id, id === DEMO_VEHICLE ? 'Nimal Fernando' : `${DRIVER_FIRST[i % DRIVER_FIRST.length]} ${DRIVER_LAST[(i + Math.floor(i / DRIVER_FIRST.length)) % DRIVER_LAST.length]}`);
-  });
+  vehicleIds.forEach((id, i) => names.set(id, id === DEMO_VEHICLE ? 'Nimal Fernando' : driverName(i)));
   const unique = new Set(names.values());
   if (unique.size !== names.size) throw new Error('Two vehicles got the same driver: extend DRIVER_FIRST / DRIVER_LAST in prisma/accounts.ts');
   return names;
+}
+
+/** Spare drivers with no vehicle, so the admin can swap someone in. */
+export const SPARE_DRIVERS = 6;
+
+/** The starting driver list: DRV001… one per vehicle (in vehicle order), then the spares. */
+export function driverRoster(vehicleIds: string[]): { id: string; name: string; phone: string; licenseNo: string; vehicleId: string | null }[] {
+  const names = driverNames(vehicleIds);
+  const people = vehicleIds.map((v) => ({ name: names.get(v)!, vehicleId: v as string | null }));
+  for (let i = 0; i < SPARE_DRIVERS; i++) people.push({ name: driverName(vehicleIds.length + i), vehicleId: null });
+  return people.map((p, i) => ({
+    id: `DRV${String(i + 1).padStart(3, '0')}`, ...p,
+    phone: `+94 7${(i * 3) % 8} ${String(200 + ((i * 53) % 700))} ${String(1000 + ((i * 389) % 9000))}`,
+    licenseNo: `B${String(4100000 + i * 7919).slice(0, 7)}`,
+  }));
 }
 
 const DISPATCHERS: Record<DepotName, string> = { Peliyagoda: 'Ruwan Perera', Kandy: 'Anjali Wickramasinghe' };
@@ -63,7 +78,9 @@ const LOADERS: Record<DepotName, string[]> = {
 export function allAccounts(): Account[] {
   const vehicles = csv('vehicles.csv');
   const drivers = driverNames(vehicles.map((v) => v.vehicle_id!));
-  const out: Account[] = [];
+  const out: Account[] = [
+    { email: `admin@${EMAIL_DOMAIN}`, name: 'System Administrator', role: 'admin', depot: null, outletId: null, vehicleId: null },
+  ];
   for (const depot of DEPOTS) {
     const d = depot.toLowerCase();
     out.push({ email: `dispatcher.${d}@${EMAIL_DOMAIN}`, name: DISPATCHERS[depot], role: 'dispatcher', depot, outletId: null, vehicleId: null });
@@ -95,4 +112,9 @@ export function passwordFor(email: string, secret = accountSecret()): string {
   let p = '';
   for (let i = 0; i < 12; i++) p += ALPHABET[mac[i]! % ALPHABET.length];
   return `${p.slice(0, 4)}-${p.slice(4, 8)}-${p.slice(8, 12)}`;
+}
+
+/** A fresh random password in the same readable format, for an admin reset or a new account. */
+export function randomPassword(): string {
+  return passwordFor(randomBytes(16).toString('hex'), randomBytes(32).toString('hex'));
 }

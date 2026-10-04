@@ -17,4 +17,4 @@ COPY scripts/credentials.ts scripts/credentials.ts
 RUN pnpm prisma generate
 EXPOSE 3000
 # Schema sync + idempotent seed on every start, then the API.
-CMD ["sh", "-c", "pnpm prisma db push --skip-generate && pnpm db:seed && pnpm --filter @waypoint/api start"]
+CMD ["sh", "-c", "pnpm prisma db execute --schema prisma/schema.prisma --file prisma/pre-push.sql && pnpm prisma db push --skip-generate && pnpm db:seed && pnpm --filter @waypoint/api start"]

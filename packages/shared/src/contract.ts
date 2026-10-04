@@ -4,7 +4,7 @@
 import { z } from 'zod';
 
 // ---------- shared enums ----------
-export const Role = z.enum(['dispatcher', 'loader', 'driver', 'store']);
+export const Role = z.enum(['dispatcher', 'loader', 'driver', 'store', 'admin']);
 export const Brand = z.enum(['Fresh', 'Style', 'Tech']);
 export const Temp = z.enum(['ambient', 'chilled']);
 export const DockType = z.enum(['rear_dock', 'street', 'mall_bay']);
@@ -465,6 +465,71 @@ export const StoreReceiptsResponse = z.object({
 });
 export const StoreNotificationDto = z.object({ id: z.string(), kind: z.string(), title: z.string(), message: z.string(), at: z.string(), read: z.boolean(), orderId: z.string().nullable() });
 export const PodDto = StoreOrderDetail.shape.pod;
+
+// ---------- administrator (accounts, drivers on vehicles, system) ----------
+export const AdminAccountDto = z.object({
+  id: z.string(), email: z.string(), name: z.string(), role: Role, depot: Depot.nullable(),
+  outletId: z.string().nullable(), vehicleId: z.string().nullable(),
+  /** false = switched off: cannot sign in, open sessions stop working */
+  active: z.boolean(),
+  /** the admin set this password (the generated one no longer applies) */
+  customPassword: z.boolean(),
+  lastLoginAt: z.string().nullable(), createdAt: z.string(),
+});
+export const AdminAccountsResponse = z.object({
+  accounts: z.array(AdminAccountDto),
+  counts: z.array(z.object({ role: Role, total: z.number().int(), active: z.number().int() })),
+});
+/** New staff account (vehicle and store accounts exist one per vehicle / store already). */
+export const CreateAccountRequest = z.object({
+  name: z.string().trim().min(2, 'Enter the full name').max(80),
+  email: z.string().trim().toLowerCase().email('Enter a valid email'),
+  role: z.enum(['dispatcher', 'loader', 'admin']),
+  depot: Depot.nullable(),
+});
+export const UpdateAccountRequest = z.object({ active: z.boolean().optional(), name: z.string().trim().min(2).max(80).optional() });
+/** The new password is shown once to the admin and never stored in plain text. */
+export const AccountPasswordResponse = z.object({ account: AdminAccountDto, password: z.string() });
+
+export const DriverDto = z.object({ id: z.string(), name: z.string(), phone: z.string().nullable(), licenseNo: z.string().nullable(), vehicleId: z.string().nullable() });
+export const AdminVehicleDto = z.object({
+  id: z.string(), type: z.enum(['truck', 'van']), temp: z.enum(['reefer', 'ambient']), depot: Depot, weightCapKg: z.number(),
+  driver: DriverDto.nullable(),
+  /** the vehicle's sign-in account (the driver uses it on the phone) */
+  accountEmail: z.string().nullable(), accountActive: z.boolean(),
+});
+export const AdminFleetResponse = z.object({ vehicles: z.array(AdminVehicleDto), drivers: z.array(DriverDto) });
+export const CreateDriverRequest = z.object({
+  name: z.string().trim().min(2, 'Enter the driver\'s full name').max(80),
+  phone: z.string().trim().max(30).optional(),
+  licenseNo: z.string().trim().max(30).optional(),
+});
+/** driverId null = take the driver off. A driver already on another vehicle moves only with move: true. */
+export const AssignDriverRequest = z.object({ driverId: z.string().nullable(), move: z.boolean().optional() });
+
+export const AdminSystemResponse = z.object({
+  serverTime: z.string(), date: IsoDate, clock: HHMM, timeZone: z.string(),
+  /** DEMO_DATE is set, so the day does not follow the calendar */
+  pinnedDate: z.boolean(),
+  uptimeSec: z.number(),
+  database: z.object({ ok: z.boolean(), latencyMs: z.number() }),
+  accounts: z.array(z.object({ role: Role, total: z.number().int(), active: z.number().int() })),
+  drivers: z.object({ total: z.number().int(), assigned: z.number().int(), spare: z.number().int() }),
+  depots: z.array(z.object({
+    depot: Depot, ordersToday: z.number().int(), planStatus: z.enum(['none', 'draft', 'published']), planVersion: z.number().int(),
+    vehicles: z.number().int(), vehiclesWithoutDriver: z.number().int(),
+  })),
+});
+export const RebuildDayResponse = z.object({ date: IsoDate, created: z.boolean(), orders: z.number().int() });
+export type TAdminAccountDto = z.infer<typeof AdminAccountDto>;
+export type TAdminAccountsResponse = z.infer<typeof AdminAccountsResponse>;
+export type TCreateAccountRequest = z.infer<typeof CreateAccountRequest>;
+export type TAccountPasswordResponse = z.infer<typeof AccountPasswordResponse>;
+export type TDriverDto = z.infer<typeof DriverDto>;
+export type TAdminVehicleDto = z.infer<typeof AdminVehicleDto>;
+export type TAdminFleetResponse = z.infer<typeof AdminFleetResponse>;
+export type TAdminSystemResponse = z.infer<typeof AdminSystemResponse>;
+export type TRebuildDayResponse = z.infer<typeof RebuildDayResponse>;
 
 // ---------- live events (Server-Sent Events) ----------
 export const LiveEvent = z.object({

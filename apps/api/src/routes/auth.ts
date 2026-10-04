@@ -12,6 +12,8 @@ export async function authRoutes(app: FastifyInstance) {
     if (!user || !(await bcrypt.compare(body.data.password, user.passwordHash))) {
       return reply.code(401).send({ error: 'Email or password is wrong.' });
     }
+    if (!user.active) return reply.code(403).send({ error: 'This account is switched off. Ask your administrator to turn it back on.' });
+    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     const session: TSessionUser = { id: user.id, name: user.name, role: user.role, depot: user.depot, outletId: user.outletId, vehicleId: user.vehicleId };
     return { token: app.jwt.sign(session, { expiresIn: '12h' }), user: session };
   });

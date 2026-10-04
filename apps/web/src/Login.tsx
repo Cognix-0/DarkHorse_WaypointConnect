@@ -219,7 +219,7 @@ export function Login() {
                     );
                   })}
                 </div>
-                <p className="text-xs text-ink-3">{activeRole.hint}</p>
+                <p className="text-xs text-ink-3">{activeRole.hint} Administrators sign in with their admin email.</p>
               </div>
 
               {/* Email */}

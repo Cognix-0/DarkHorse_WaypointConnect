@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { PrismaClient, type Brand, type Depot, type DockType, type Parking, type VehicleTemp, type VehicleType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { parseCsv } from '../packages/shared/src/engine/reference.ts';
-import { allAccounts, driverNames, EMAIL_DOMAIN, passwordFor, storeManager, DEMO_STORE } from './accounts.ts';
+import { allAccounts, driverRoster, EMAIL_DOMAIN, passwordFor, storeManager, DEMO_STORE } from './accounts.ts';
 import { addLines, buildDemoDay, demoDate } from './demo-day.ts';
 
 const prisma = new PrismaClient();
@@ -35,26 +35,38 @@ async function main() {
     };
     await prisma.outlet.upsert({ where: { id: r.outlet_id! }, update: data, create: { id: r.outlet_id!, ...data } });
   }
-  // Every vehicle has its own assigned driver (never one person on two vehicles).
   const vehicles = csv('vehicles.csv');
-  const drivers = driverNames(vehicles.map((v) => v.vehicle_id!));
   for (const r of vehicles) {
     const data = {
       type: r.type as VehicleType, temp: r.temp as VehicleTemp, weightCapKg: Number(r.weight_cap_kg), volumeCapM3: Number(r.volume_cap_m3),
       depot: r.depot as Depot, kmPerL: Number(r.km_per_l), weeklyFuelQuotaL: Number(r.weekly_fuel_quota_l),
-      driverName: drivers.get(r.vehicle_id!)!,
     };
     await prisma.vehicle.upsert({ where: { id: r.vehicle_id! }, update: data, create: { id: r.vehicle_id!, ...data } });
   }
-
-  // ---- accounts: one per vehicle, store, depot dispatcher and depot loader, each with its own password
-  const accounts = allAccounts();
-  for (const a of accounts) {
-    const passwordHash = await bcrypt.hash(passwordFor(a.email), 8);
-    await prisma.user.upsert({ where: { email: a.email }, update: { ...a, passwordHash }, create: { ...a, passwordHash } });
+  // Drivers: the starting list (one per vehicle plus spares) is created once. After that the admin owns the
+  // assignments, so restarts never move a driver.
+  if ((await prisma.driver.count()) === 0) {
+    const roster = driverRoster(vehicles.map((v) => v.vehicle_id!));
+    for (const d of roster) await prisma.driver.create({ data: { id: d.id, name: d.name, phone: d.phone, licenseNo: d.licenseNo } });
+    for (const d of roster.filter((x) => x.vehicleId)) {
+      await prisma.vehicle.update({ where: { id: d.vehicleId! }, data: { driverId: d.id, driverName: d.name } });
+    }
   }
-  // The old shared logins (dispatcher@ / loader@ / driver@ / store@waypoint.demo) and any account no longer in the list.
-  await prisma.user.deleteMany({ where: { email: { notIn: accounts.map((a) => a.email) } } });
+
+  // ---- accounts: admin, one per vehicle, store, depot dispatcher and depot loader, each with its own password.
+  // Never undone by a restart: an account the admin switched off stays off, a password the admin reset stays,
+  // and a vehicle account carries the name of the driver the admin assigned.
+  const accounts = allAccounts();
+  const drivers = new Map((await prisma.vehicle.findMany({ select: { id: true, driverName: true } })).map((v) => [v.id, v.driverName]));
+  for (const a of accounts) {
+    const name = a.vehicleId ? drivers.get(a.vehicleId) ?? `${a.vehicleId} · no driver assigned` : a.name;
+    const existing = await prisma.user.findUnique({ where: { email: a.email }, select: { customPassword: true } });
+    const passwordHash = existing?.customPassword ? undefined : await bcrypt.hash(passwordFor(a.email), 8);
+    if (existing) await prisma.user.update({ where: { email: a.email }, data: { ...a, name, ...(passwordHash ? { passwordHash } : {}) } });
+    else await prisma.user.create({ data: { ...a, name, passwordHash: passwordHash! } });
+  }
+  // The old shared logins (dispatcher@ / loader@ / driver@ / store@waypoint.demo). Accounts the admin created stay.
+  await prisma.user.deleteMany({ where: { email: { endsWith: '@waypoint.demo' } } });
 
   // ---- today's delivery day
   const date = demoDate();

@@ -19,14 +19,22 @@ Open https://localhost (accept the local certificate once). On a server, set `DO
 
 ### Accounts
 
-Everyone has their own account (188 in all). Drivers sign in as their **vehicle**: each vehicle has one assigned driver, and no driver is assigned to two vehicles.
+Everyone has their own account (189 in all). Drivers sign in as their **vehicle**: each vehicle has one assigned driver, and no driver is assigned to two vehicles.
 
 | Role | Email | How many | Linked to |
 | --- | --- | --- | --- |
+| Administrator | `admin@waypoint.lk` | 1 (more can be added) | everything: accounts, drivers on vehicles, system |
 | Dispatcher | `dispatcher.peliyagoda@waypoint.lk`, `dispatcher.kandy@waypoint.lk` | 1 per depot | their depot only |
 | Loader | `loader1.peliyagoda@waypoint.lk` … `loader3.kandy@waypoint.lk` | 3 per depot | their depot |
 | Driver (vehicle) | `veh001@waypoint.lk` … `veh060@waypoint.lk` | 1 per vehicle | the vehicle and its assigned driver |
 | Store manager | `out001@waypoint.lk` … `out120@waypoint.lk` | 1 per store | the store |
+
+**Admin Console** (`admin@waypoint.lk`, `/admin`):
+- **Vehicles & drivers**: put one driver on each vehicle from the driver list (60 drivers plus 6 spares). A driver already on another vehicle is moved only after confirming, so nobody drives two vehicles (the database enforces it too). Add new drivers. The vehicle's phone sign-in shows the new driver's name at once.
+- **Accounts**: search all accounts, switch access on or off (a switched-off account cannot sign in and an open session stops at its next request), reset a password (the new one is shown once), and create dispatcher, loader or administrator accounts.
+- **System**: database and API health, the working day and clock every screen uses, today's orders and plan per depot, and *Build today's orders* if a day is empty.
+
+A restart never undoes the admin's work: driver assignments, switched-off accounts, reset passwords and new accounts all stay.
 
 **Passwords are different for every account** and are never stored in plain text: each is derived from `ACCOUNT_SECRET` in `.env`. Print the list with `pnpm credentials` (on the server: `docker compose exec api pnpm -s credentials > credentials.csv`). Never commit that file. Judges receive the passwords for the walkthrough accounts with the submission.
 

@@ -9,6 +9,7 @@ import { liveRoutes } from './routes/live.ts';
 import { loaderRoutes } from './routes/loader.ts';
 import { driverRoutes } from './routes/driver.ts';
 import { storeRoutes } from './routes/store.ts';
+import { adminRoutes } from './routes/admin.ts';
 import { HttpError } from './plans.ts';
 import { prisma } from './db.ts';
 import { today } from './reference.ts';
@@ -55,6 +56,7 @@ await app.register(async (api) => {
   await api.register(loaderRoutes);
   await api.register(driverRoutes);
   await api.register(storeRoutes);
+  await api.register(adminRoutes);
 }, { prefix: '/api' });
 
 const port = Number(process.env.API_PORT ?? 3000);

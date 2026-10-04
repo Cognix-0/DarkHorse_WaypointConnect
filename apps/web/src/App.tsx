@@ -6,6 +6,7 @@ import { DispatcherApp } from './roles/dispatcher/DispatcherApp';
 import { DriverApp } from './roles/driver/DriverApp';
 import { LoaderApp } from './roles/loader/LoaderApp';
 import { StoreApp } from './roles/store/StoreApp';
+import { AdminApp } from './roles/admin/AdminApp';
 
 // Each role area lives in src/roles/<role>/ and is owned by one team member (see README).
 
@@ -31,6 +32,7 @@ export function App() {
       <Route path="/loader/*" element={<Guard role="loader"><LoaderApp /></Guard>} />
       <Route path="/driver/*" element={<Guard role="driver"><DriverApp /></Guard>} />
       <Route path="/store/*" element={<Guard role="store"><StoreApp /></Guard>} />
+      <Route path="/admin/*" element={<Guard role="admin"><AdminApp /></Guard>} />
       <Route path="*" element={<Home />} />
     </Routes>
   );
