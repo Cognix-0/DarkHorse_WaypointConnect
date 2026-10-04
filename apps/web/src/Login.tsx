@@ -57,7 +57,7 @@ const FLOW_STEPS = [
 
 /** Example sign-in per role: every person has their own account (drivers sign in as their vehicle). */
 const EXAMPLE_EMAIL: Record<Role, string> = {
-  dispatcher: 'dispatcher.peliyagoda@waypoint.lk',
+  dispatcher: 'dispatcher@waypoint.lk',
   loader: 'loader1.peliyagoda@waypoint.lk',
   driver: 'veh024@waypoint.lk',
   store: 'out026@waypoint.lk',
