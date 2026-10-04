@@ -59,7 +59,7 @@ export function GetApp() {
           <h2 id="android-h" className="text-base font-semibold">Android</h2>
           {apk && (
             <>
-              <a href={APK_PATH} download className="btn-primary h-12 grid place-items-center">Download the app (APK{apk.size ? ` · ${(apk.size / 1048576).toFixed(1)} MB` : ''})</a>
+              <a href={APK_PATH} download className="btn-primary h-12 grid place-items-center">Download the driver app (APK{apk.size ? ` · ${(apk.size / 1048576).toFixed(1)} MB` : ''})</a>
               <p className="text-xs text-ink-3">Open the downloaded file and allow “Install unknown apps” for your browser when Android asks. The app is not on the Play Store yet.</p>
             </>
           )}
