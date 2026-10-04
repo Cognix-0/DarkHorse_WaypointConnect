@@ -15,6 +15,7 @@ import { randomPassword } from '../../../../prisma/accounts.ts';
 import { buildDemoDay } from '../../../../prisma/demo-day.ts';
 import { DEMO_CLOCKS, DEMO_DAY, DEMO_STORE, demo, endDemo, resetDemoData, startDemo } from '../demo.ts';
 import { displayRef, tripState } from '../day.ts';
+import { supportRequests } from './auth.ts';
 
 const ROLES = ['admin', 'dispatcher', 'loader', 'driver', 'store'] as const;
 const startedAt = Date.now();
@@ -178,6 +179,19 @@ export async function adminRoutes(app: FastifyInstance) {
       await syncVehicleAccount(tx, id, driver.name);
     });
     return { ok: true };
+  });
+
+  // ---- support / password reset requests
+  app.get('/admin/support-requests', admin, async () => {
+    return { requests: supportRequests };
+  });
+
+  app.post('/admin/support-requests/:id/resolve', admin, async (req) => {
+    const { id } = req.params as { id: string };
+    const reqItem = supportRequests.find((r) => r.id === id);
+    if (!reqItem) throw new HttpError(404, 'Support request not found.');
+    reqItem.status = 'resolved';
+    return { ok: true, request: reqItem };
   });
 }
 

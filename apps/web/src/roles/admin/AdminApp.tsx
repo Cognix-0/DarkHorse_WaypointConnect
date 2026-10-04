@@ -10,6 +10,8 @@ import { Fleet } from './Fleet';
 import { Accounts } from './Accounts';
 import { Demo } from './Demo';
 
+import { useSupportRequests } from './api';
+
 export function AdminApp() {
   return (
     <ToastProvider>
@@ -43,6 +45,8 @@ const NAV: { to: string; label: string; icon: ReactNode; end?: boolean }[] = [
 function Sidebar() {
   const s = getSession();
   const nav = useNavigate();
+  const reqs = useSupportRequests();
+  const pendingCount = (reqs.data?.requests ?? []).filter((r) => r.status === 'pending').length;
   const initials = (s?.user.name ?? 'A').split(' ').map((p) => p[0]).join('').slice(0, 2);
   return (
     <aside className="bg-nav text-nav-text lg:sticky lg:top-0 lg:h-screen flex lg:flex-col gap-4 px-4 py-4 lg:px-5 lg:py-6 overflow-x-auto">
@@ -61,6 +65,11 @@ function Sidebar() {
             className={({ isActive }) => cx('flex items-center gap-3 h-11 px-3 rounded-lg text-sm font-medium whitespace-nowrap transition-colors', isActive ? 'bg-nav-active text-white' : 'text-nav-text hover:bg-white/5')}>
             {n.icon}
             <span>{n.label}</span>
+            {n.to === '/admin' && pendingCount > 0 && (
+              <span className="ml-auto h-5 px-1.5 rounded-full bg-warn text-white text-2xs font-bold flex items-center justify-center">
+                {pendingCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>

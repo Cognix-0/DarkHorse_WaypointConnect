@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { TLoginResponse } from '@waypoint/shared/contract';
 import { api, setSession } from './api';
+import { Modal } from './ui/Modal';
 
 const FLOW_STEPS = [
   { label: 'Order', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M9 12h.01M15 12h.01M9 16h.01M15 16h.01M4 4h16v16H4z" /></svg> },
@@ -18,6 +19,7 @@ export function Login() {
   const [keepSigned, setKeepSigned] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [forgotModal, setForgotModal] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -220,7 +222,11 @@ export function Login() {
                   />
                   Keep me signed in on this device
                 </label>
-                <button type="button" className="text-sm font-semibold text-primary hover:text-primary-hover transition">
+                <button
+                  type="button"
+                  onClick={() => setForgotModal(true)}
+                  className="text-sm font-semibold text-primary hover:text-primary-hover transition"
+                >
                   Forgot password?
                 </button>
               </div>
@@ -259,6 +265,110 @@ export function Login() {
           </div>
         </div>
       </div>
+
+      {forgotModal && (
+        <ForgotPasswordModal initialEmail={email} onClose={() => setForgotModal(false)} />
+      )}
     </div>
+  );
+}
+
+const COMMON_PROBLEMS = [
+  'Forgot my password - please reset access',
+  'Locked out / account switched off - need access enabled',
+  'Phone reset or new device - cannot sign in',
+  'Credentials not recognized - need password reset',
+  'Driver or vehicle account issue',
+  'Other problem',
+];
+
+function ForgotPasswordModal({ initialEmail, onClose }: { initialEmail: string; onClose: () => void }) {
+  const [emailInput, setEmailInput] = useState(initialEmail);
+  const [selectedProblem, setSelectedProblem] = useState(COMMON_PROBLEMS[0]);
+  const [customNote, setCustomNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    const finalIssue = selectedProblem === 'Other problem'
+      ? (customNote.trim() || 'Other problem')
+      : (customNote.trim() ? `${selectedProblem} (${customNote.trim()})` : selectedProblem);
+    try {
+      await api<{ ok: boolean; message: string }>('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email: emailInput, issue: finalIssue }),
+      });
+      setDone(true);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title="Forgot Password / Support Request" onClose={onClose}>
+      {done ? (
+        <div className="space-y-4 py-2">
+          <div className="p-3 bg-ok-soft text-ok border border-ok/30 rounded-xl text-sm font-medium">
+            Your issue message has been sent to the Admin console dashboard! Your administrator will review it and assist you shortly.
+          </div>
+          <button onClick={onClose} className="btn-primary w-full h-10">Done</button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="space-y-4">
+          <p className="text-xs text-ink-3">
+            Select the problem you are experiencing or enter your employee ID. A support message will be sent directly to the Admin console dashboard.
+          </p>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-ink">Employee ID or email</label>
+            <input
+              type="text"
+              required
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              placeholder="e.g. driver@waypoint.lk or veh024"
+              className="input w-full"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-ink">Select common problem</label>
+            <select
+              value={selectedProblem}
+              onChange={(e) => setSelectedProblem(e.target.value)}
+              className="input w-full font-medium"
+            >
+              {COMMON_PROBLEMS.map((prob) => (
+                <option key={prob} value={prob}>{prob}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-ink">Additional note (optional)</label>
+            <input
+              type="text"
+              value={customNote}
+              onChange={(e) => setCustomNote(e.target.value)}
+              placeholder="e.g. Needs reset for Colombo depot shift"
+              className="input w-full text-xs"
+            />
+          </div>
+
+          {error && <p className="text-xs text-bad font-medium">{error}</p>}
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={busy} className="btn-primary">
+              {busy ? 'Sending…' : 'Send Message to Admin'}
+            </button>
+          </div>
+        </form>
+      )}
+    </Modal>
   );
 }

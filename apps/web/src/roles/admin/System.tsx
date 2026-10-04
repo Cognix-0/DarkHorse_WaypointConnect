@@ -4,7 +4,7 @@ import { Badge } from '../../ui/Badge';
 import { ErrorBox, Loading } from '../../ui/States';
 import { useToast } from '../../ui/Toast';
 import { cx, num, shortDate } from '../../ui/format';
-import { useRebuildToday, useSystem } from './api';
+import { useRebuildToday, useResolveSupportRequest, useSupportRequests, useSystem } from './api';
 import { AdminHeader } from './parts';
 
 const ROLE_LABEL: Record<string, string> = { admin: 'Administrators', dispatcher: 'Dispatchers', loader: 'Loaders', driver: 'Vehicles (drivers)', store: 'Store managers' };
@@ -71,28 +71,95 @@ export function System() {
           </div>
         </section>
 
-        <section className="card p-5 grid gap-4 content-start" aria-labelledby="acc-h">
-          <div className="flex items-center">
-            <h2 id="acc-h" className="text-[15px] font-semibold">Accounts</h2>
-            <Link to="/admin/accounts" className="ml-auto text-[13px] font-semibold text-primary hover:underline">Manage</Link>
-          </div>
-          <ul className="grid gap-2 text-[13px]">
-            {d.accounts.map((a) => (
-              <li key={a.role} className="flex items-center gap-3">
-                <span className="text-ink-2">{ROLE_LABEL[a.role] ?? a.role}</span>
-                <span className="ml-auto tabular font-semibold text-ink">{a.active}</span>
-                <span className="tabular text-ink-3 w-24 text-right">{a.total - a.active ? `${a.total - a.active} switched off` : 'all on'}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="border-t border-line pt-3 flex items-center gap-3 text-[13px]">
-            <span className="text-ink-2">Drivers</span>
-            <span className="ml-auto text-ink-3">{d.drivers.assigned} on vehicles · {d.drivers.spare} spare</span>
-            <Link to="/admin/fleet" className="font-semibold text-primary hover:underline">Assign</Link>
-          </div>
-        </section>
+        <div className="grid gap-5 content-start">
+          <section className="card p-5 grid gap-4 content-start" aria-labelledby="acc-h">
+            <div className="flex items-center">
+              <h2 id="acc-h" className="text-[15px] font-semibold">Accounts</h2>
+              <Link to="/admin/accounts" className="ml-auto text-[13px] font-semibold text-primary hover:underline">Manage</Link>
+            </div>
+            <ul className="grid gap-2 text-[13px]">
+              {d.accounts.map((a) => (
+                <li key={a.role} className="flex items-center gap-3">
+                  <span className="text-ink-2">{ROLE_LABEL[a.role] ?? a.role}</span>
+                  <span className="ml-auto tabular font-semibold text-ink">{a.active}</span>
+                  <span className="tabular text-ink-3 w-24 text-right">{a.total - a.active ? `${a.total - a.active} switched off` : 'all on'}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="border-t border-line pt-3 flex items-center gap-3 text-[13px]">
+              <span className="text-ink-2">Drivers</span>
+              <span className="ml-auto text-ink-3">{d.drivers.assigned} on vehicles · {d.drivers.spare} spare</span>
+              <Link to="/admin/fleet" className="font-semibold text-primary hover:underline">Assign</Link>
+            </div>
+          </section>
+
+          <SupportRequestsSection />
+        </div>
       </div>
     </>
+  );
+}
+
+function SupportRequestsSection() {
+  const q = useSupportRequests();
+  const resolve = useResolveSupportRequest();
+  const toast = useToast();
+
+  if (q.isLoading) return null;
+  const requests = q.data?.requests ?? [];
+  const pending = requests.filter((r) => r.status === 'pending');
+
+  async function handleResolve(id: string) {
+    try {
+      await resolve.mutateAsync(id);
+      toast({ tone: 'ok', title: 'Support request resolved' });
+    } catch (e) {
+      toast({ tone: 'bad', title: (e as Error).message });
+    }
+  }
+
+  return (
+    <section className="card p-5 grid gap-3" aria-labelledby="supp-h">
+      <div className="flex items-center">
+        <h2 id="supp-h" className="text-[15px] font-semibold">User Support &amp; Password Messages</h2>
+        {pending.length > 0 ? (
+          <Badge tone="warn" className="ml-auto">{pending.length} pending</Badge>
+        ) : (
+          <span className="ml-auto text-xs text-ink-3">All clear</span>
+        )}
+      </div>
+
+      {requests.length === 0 ? (
+        <p className="text-xs text-ink-3 py-2">No user password reset or support messages received yet.</p>
+      ) : (
+        <div className="grid gap-3">
+          {requests.map((r) => (
+            <div key={r.id} className={cx('p-3 rounded-xl border grid gap-1.5 text-xs', r.status === 'pending' ? 'bg-warn-tint border-warn/30' : 'bg-surface border-line opacity-75')}>
+              <div className="flex items-center gap-2">
+                <Badge tone={r.status === 'pending' ? 'warn' : 'ok'}>{r.status === 'pending' ? 'Pending' : 'Resolved'}</Badge>
+                <strong className="text-ink truncate max-w-[180px]">{r.email}</strong>
+                <span className="ml-auto text-2xs text-ink-3">
+                  {new Date(r.createdAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Colombo' })}
+                </span>
+              </div>
+              <p className="text-ink-2 font-medium">{r.issue}</p>
+              <div className="flex items-center gap-2 pt-1">
+                <Link to="/admin/accounts" className="font-semibold text-primary hover:underline">Accounts &amp; Reset →</Link>
+                {r.status === 'pending' && (
+                  <button
+                    onClick={() => handleResolve(r.id)}
+                    disabled={resolve.isPending}
+                    className="ml-auto btn-secondary btn-sm"
+                  >
+                    Mark Resolved
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
