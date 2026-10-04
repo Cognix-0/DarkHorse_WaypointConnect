@@ -10,7 +10,12 @@ import { loaderRoutes } from './routes/loader.ts';
 import { driverRoutes } from './routes/driver.ts';
 import { storeRoutes } from './routes/store.ts';
 import { adminRoutes } from './routes/admin.ts';
+import { realtimeRoutes } from './routes/realtime.ts';
+import { signalChange } from './events.ts';
 import { HttpError } from './plans.ts';
+import type { TChangeSignal } from '@waypoint/shared/contract';
+
+type TChangeRole = NonNullable<TChangeSignal['by']>;
 import { prisma } from './db.ts';
 import { today, workingDay } from './reference.ts';
 import { buildDemoDay } from '../../../prisma/demo-day.ts';
@@ -43,9 +48,23 @@ const ensureDay = (date: string) => {
 };
 const ensureToday = async () => { await ensureDay(today()); await ensureDay(workingDay()); };
 
+// Screens follow the run: at the 16:00 cutoff (and at midnight) every open screen moves on without a refresh.
+let lastRun = `${today()}|${workingDay()}`;
+setInterval(() => {
+  const run = `${today()}|${workingDay()}`;
+  if (run === lastRun) return;
+  lastRun = run;
+  void ensureToday().then(() => signalChange(null));
+}, 30_000).unref();
+
 // Every route lives under /api (Caddy forwards /api/* here).
 await app.register(async (api) => {
   api.addHook('onRequest', async () => { await ensureToday(); });
+  // Any successful change (store order, plan, loading, delivery, admin) refreshes every open screen.
+  api.addHook('onResponse', async (req, reply) => {
+    if (req.method === 'GET' || reply.statusCode >= 400 || req.url.startsWith('/api/auth/')) return;
+    signalChange((req.user as { role?: TChangeRole } | undefined)?.role ?? null);
+  });
   api.get('/health', async () => {
     await prisma.$queryRaw`SELECT 1`;
     return { ok: true, at: new Date().toISOString() };
@@ -58,6 +77,7 @@ await app.register(async (api) => {
   await api.register(driverRoutes);
   await api.register(storeRoutes);
   await api.register(adminRoutes);
+  await api.register(realtimeRoutes);
 }, { prefix: '/api' });
 
 const port = Number(process.env.API_PORT ?? 3000);

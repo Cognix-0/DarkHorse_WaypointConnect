@@ -1,6 +1,6 @@
 // Waypoint Connect service worker: lets the driver and loader apps open with no signal.
 // App files are cached; API calls are never cached here (the driver app keeps its own copy in IndexedDB).
-const CACHE = 'waypoint-shell-v2';
+const CACHE = 'waypoint-shell-v3';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/logo-mark.png', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -25,8 +25,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
-  // API calls, app downloads (APK) and Android app links are never cached.
-  if (req.method !== 'GET' || /^\/(api|downloads|\.well-known)\//.test(url.pathname)) return;
+  // API calls, app downloads (APK), Android app links and the deployed build id are never cached.
+  if (req.method !== 'GET' || /^\/(api|downloads|\.well-known)\//.test(url.pathname) || url.pathname === '/version.json') return;
   const sameOrigin = url.origin === self.location.origin;
   const fonts = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
   if (!sameOrigin && !fonts) return;

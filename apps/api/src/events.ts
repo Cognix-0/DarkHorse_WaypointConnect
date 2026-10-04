@@ -1,7 +1,7 @@
 // In-process event bus for Server-Sent Events (GET /api/events). One API instance is enough for the demo;
 // with several instances this would move to Postgres LISTEN/NOTIFY.
 import { EventEmitter } from 'node:events';
-import type { TLiveEvent } from '@waypoint/shared/contract';
+import type { TChangeSignal, TLiveEvent } from '@waypoint/shared/contract';
 import { prisma } from './db.ts';
 
 export const bus = new EventEmitter();
@@ -11,6 +11,22 @@ export function emit(kind: TLiveEvent['kind'], message: string, refs: Record<str
   const ev: TLiveEvent = { kind, at: new Date().toISOString(), message, refs };
   bus.emit('event', ev);
   return ev;
+}
+
+/**
+ * Tells every open screen (all roles) that data changed, so it refetches without a browser refresh.
+ * Bursts (a loader ticking ten lines) are merged into one signal.
+ */
+let pending: ReturnType<typeof setTimeout> | null = null;
+let pendingBy: TChangeSignal['by'] = null;
+export function signalChange(by: TChangeSignal['by'] = null) {
+  pendingBy = by;
+  if (pending) return;
+  pending = setTimeout(() => {
+    pending = null;
+    const sig: TChangeSignal = { at: new Date().toISOString(), by: pendingBy };
+    bus.emit('changed', sig);
+  }, 250);
 }
 
 /** Dispatcher alert (D5 "Alerts & exceptions"), stored so it survives a refresh. */

@@ -6,6 +6,7 @@ import type { TDriverRouteResponse, TSyncEvent, TSyncResponse } from '@waypoint/
 import { api, ApiError } from '../../api';
 import { kvGet, kvSet, outboxAll, outboxDelete, outboxPut } from '../../offline/idb';
 import { colomboTime } from '../../ui/format';
+import { CHANGED_EVENT } from '../../live';
 
 export type Queued = TSyncEvent & { label: string; queuedAt: string };
 export type SyncedItem = { label: string; at: string };
@@ -188,7 +189,10 @@ export function DriverStore({ children }: { children: ReactNode }) {
     window.addEventListener('online', on);
     window.addEventListener('offline', off);
     const tick = setInterval(() => { if (navigator.onLine) void flush().then(() => refresh()); }, 20_000);
-    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); clearInterval(tick); };
+    // Realtime: the dispatcher republished, the loader sealed… (src/live.tsx) → fetch the route now.
+    const changed = () => { if (navigator.onLine) void refresh(); };
+    window.addEventListener(CHANGED_EVENT, changed);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); window.removeEventListener(CHANGED_EVENT, changed); clearInterval(tick); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = useMemo<Ctx>(() => ({

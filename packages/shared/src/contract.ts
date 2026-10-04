@@ -531,6 +531,12 @@ export type TAdminFleetResponse = z.infer<typeof AdminFleetResponse>;
 export type TAdminSystemResponse = z.infer<typeof AdminSystemResponse>;
 export type TRebuildDayResponse = z.infer<typeof RebuildDayResponse>;
 
+// ---------- realtime refresh (Server-Sent Events, every role) ----------
+/** "Something changed": sent on GET /api/changes after any successful change. No business data, so any role may
+ * receive it; each screen then refetches what it shows. */
+export const ChangeSignal = z.object({ at: z.string(), by: Role.nullable() });
+export type TChangeSignal = z.infer<typeof ChangeSignal>;
+
 // ---------- live events (Server-Sent Events) ----------
 export const LiveEvent = z.object({
   kind: z.enum(['plan.published', 'plan.acknowledged', 'order.deferred', 'load.progress', 'load.shortfall', 'load.sealed', 'trip.departed', 'stop.arrived', 'stop.delivered', 'stop.failed', 'vehicle.stale', 'receipt.issue']),

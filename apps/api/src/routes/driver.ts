@@ -30,7 +30,7 @@ export async function driverRoutes(app: FastifyInstance) {
     const ctx = baseContext;
     const planL = tripsLitres(trips.map((t) => ({ vehicleId, tripNo: t.tripNo as 1 | 2, brand: t.brand, district: t.district, orders: t.stops.map((s) => ({ ref: s.orderId }) as never) })), vehicle.kmPerL, ctx);
     return {
-      date, vehicleId, vehicleKind: kindOf(vehicle), depot: vehicle.depot as Depot, driverName: req.user.name,
+      date, vehicleId, vehicleKind: kindOf(vehicle), depot: vehicle.depot as Depot, driverName: vehicle.driverName ?? req.user.name,
       published: !!plan, version: plan?.version ?? 0, publishedAt: plan?.publishedAt?.toISOString() ?? null,
       fuel: { usedL: Math.round(vehicle.fuelUsedWeekL), quotaL: vehicle.weeklyFuelQuotaL, planL: Math.round(planL) },
       serverTime: new Date().toISOString(),

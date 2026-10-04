@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { GetApp } from './GetApp';
 import { Login } from './Login';
 import { getSession } from './api';
+import { LiveSync } from './live';
 import { DispatcherApp } from './roles/dispatcher/DispatcherApp';
 import { DriverApp } from './roles/driver/DriverApp';
 import { LoaderApp } from './roles/loader/LoaderApp';
@@ -25,6 +26,8 @@ function Home() {
 
 export function App() {
   return (
+    <>
+    <LiveSync />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/get-app" element={<GetApp />} />
@@ -35,5 +38,6 @@ export function App() {
       <Route path="/admin/*" element={<Guard role="admin"><AdminApp /></Guard>} />
       <Route path="*" element={<Home />} />
     </Routes>
+    </>
   );
 }
