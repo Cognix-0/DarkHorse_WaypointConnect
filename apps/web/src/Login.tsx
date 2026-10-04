@@ -3,81 +3,21 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { TLoginResponse } from '@waypoint/shared/contract';
 import { api, setSession } from './api';
 
-type Role = 'dispatcher' | 'loader' | 'driver' | 'store';
-
-const ROLES: { key: Role; label: string; hint: string; icon: JSX.Element }[] = [
-  {
-    key: 'dispatcher',
-    label: 'Dispatcher',
-    hint: "You'll go straight to the Dispatcher console after signing in.",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" />
-      </svg>
-    ),
-  },
-  {
-    key: 'loader',
-    label: 'Loader',
-    hint: "You'll go straight to the Dock tablet after signing in.",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 8h14M5 12h9M5 16h6M3 4h18v16H3z" />
-      </svg>
-    ),
-  },
-  {
-    key: 'driver',
-    label: 'Driver',
-    hint: "You'll go straight to your route after signing in.",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 6h11v10H3zM14 10h4l3 3v3h-7M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-      </svg>
-    ),
-  },
-  {
-    key: 'store',
-    label: 'Store',
-    hint: "You'll go straight to the Store dashboard after signing in.",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9l1-5h16l1 5M3 9h18M3 9v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V9M9 21V9" />
-      </svg>
-    ),
-  },
-];
-
 const FLOW_STEPS = [
-  { label: 'Order', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M9 12h.01M15 12h.01M9 16h.01M15 16h.01M4 4h16v16H4z"/></svg> },
-  { label: 'Plan', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg> },
-  { label: 'Load', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M5 8h14M5 12h9M5 16h6M3 4h18v16H3z"/></svg> },
-  { label: 'Deliver', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg> },
+  { label: 'Order', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M9 12h.01M15 12h.01M9 16h.01M15 16h.01M4 4h16v16H4z" /></svg> },
+  { label: 'Plan', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8M12 17v4" /></svg> },
+  { label: 'Load', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M5 8h14M5 12h9M5 16h6M3 4h18v16H3z" /></svg> },
+  { label: 'Deliver', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" /></svg> },
 ];
-
-/** Example sign-in per role: every person has their own account (drivers sign in as their vehicle). */
-const EXAMPLE_EMAIL: Record<Role, string> = {
-  dispatcher: 'dispatcher@waypoint.lk',
-  loader: 'loader1.peliyagoda@waypoint.lk',
-  driver: 'veh024@waypoint.lk',
-  store: 'out026@waypoint.lk',
-};
 
 export function Login() {
   const nav = useNavigate();
-  const [role, setRole] = useState<Role>('dispatcher');
-  const [email, setEmail] = useState(EXAMPLE_EMAIL.dispatcher);
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('dispatcher.peliyagoda@waypoint.lk');
+  const [password, setPassword] = useState('waypoint-demo');
   const [showPw, setShowPw] = useState(false);
   const [keepSigned, setKeepSigned] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  function selectRole(r: Role) {
-    setRole(r);
-    setEmail(EXAMPLE_EMAIL[r]);
-    setError(null);
-  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -96,8 +36,6 @@ export function Login() {
       setBusy(false);
     }
   }
-
-  const activeRole = ROLES.find((r) => r.key === role)!;
 
   return (
     <div className="min-h-screen flex">
@@ -154,8 +92,6 @@ export function Login() {
             ))}
           </div>
 
-
-
           {/* Stats */}
           <div className="flex gap-8 pt-2">
             {[
@@ -190,37 +126,24 @@ export function Login() {
         {/* Form area */}
         <div className="flex-1 flex items-center justify-center px-6 py-8">
           <div className="w-full max-w-md space-y-6">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl overflow-hidden shadow-sm border border-line bg-surface flex items-center justify-center p-1">
+                <img src="/logo-mark.png" alt="Waypoint logo" className="w-full h-full object-contain" />
+              </div>
+              <div className="flex flex-col justify-center">
+                <span className="text-ink font-extrabold text-lg tracking-tight leading-none">Waypoint</span>
+                <span className="text-ink-3 text-xs leading-tight font-medium mt-0.5">Delivery Operations</span>
+              </div>
+            </div>
+
             {/* Heading */}
             <div>
               <h1 className="text-2xl font-bold text-ink">Sign in</h1>
-              <p className="text-sm text-ink-3 mt-1">Welcome back. Choose your role and sign in to continue.</p>
+              <p className="text-sm text-ink-3 mt-1">Welcome back. Enter your employee ID or email to sign in.</p>
             </div>
 
             <form onSubmit={submit} className="space-y-5">
-              {/* Role selector */}
-              <div className="space-y-2">
-                <div className="grid grid-cols-4 gap-2">
-                  {ROLES.map((r) => {
-                    const active = r.key === role;
-                    return (
-                      <button
-                        key={r.key}
-                        type="button"
-                        onClick={() => selectRole(r.key)}
-                        className={`flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl border text-xs font-semibold transition-all ${
-                          active
-                            ? 'border-primary bg-primary-faint text-primary shadow-sm'
-                            : 'border-line text-ink-3 hover:border-line-strong hover:text-ink-2'
-                        }`}
-                      >
-                        <span className={active ? 'text-primary' : 'text-ink-4'}>{r.icon}</span>
-                        {r.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-ink-3">{activeRole.hint} Administrators sign in with their admin email.</p>
-              </div>
 
               {/* Email */}
               <div className="space-y-1">
@@ -230,7 +153,7 @@ export function Login() {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
                     </svg>
                   </span>
                   <input
@@ -254,7 +177,7 @@ export function Login() {
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-4">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                      <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
                   </span>
                   <input
@@ -275,11 +198,11 @@ export function Login() {
                   >
                     {showPw ? (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M3 3l18 18"/>
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M3 3l18 18" />
                       </svg>
                     ) : (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/>
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" /><circle cx="12" cy="12" r="3" />
                       </svg>
                     )}
                   </button>

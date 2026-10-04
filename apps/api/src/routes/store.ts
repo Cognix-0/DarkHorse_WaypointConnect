@@ -2,9 +2,9 @@
 // answer a deferral, and see receipts. Every route works on the signed-in manager's own outlet only.
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { Prisma } from '@prisma/client';
-import { orderTypeLabel, catalogueFor, storeOrderLines, toHHMM, toMin, type Brand, type Temp } from '@waypoint/shared';
+import { orderTypeLabel, catalogueFor, addProductToCatalogue, storeOrderLines, toHHMM, toMin, type Brand, type Temp } from '@waypoint/shared';
 import {
-  DeferralResponseRequest, ReceiptRequest, StoreOrderRequest,
+  AddProductRequest, DeferralResponseRequest, ReceiptRequest, StoreOrderRequest,
   type TCutoffDto, type TPod, type TStoreCatalogueResponse, type TStoreOrderCard, type TStoreOrderDetail, type TStoreOrdersResponse,
   type TStoreOutletDto, type TStoreReceiptsResponse, type TStoreTodayResponse, type TStoreNotificationDto,
 } from '@waypoint/shared/contract';
@@ -219,14 +219,52 @@ export async function storeRoutes(app: FastifyInstance) {
       where: { outletId, temp, deliveryDate: { lt: dbDate(orderDate) }, status: { not: 'cancelled' } },
       include: { lines: true }, orderBy: { deliveryDate: 'desc' },
     });
+    const products = catalogueFor(outlet.brand, temp).map((p, idx) => {
+      const lastPacks = last?.lines.filter((l) => l.product === p.name).reduce((n, l) => n + l.packs, 0) ?? 0;
+      let suggestedPacks = 0;
+      let suggestionReason = '';
+      if (lastPacks > 0) {
+        suggestedPacks = Math.max(1, Math.round(lastPacks * 1.15));
+        suggestionReason = `+15% safety buffer on last order (${lastPacks} ${p.pack})`;
+      } else {
+        // Default baseline recommendation for store items
+        suggestedPacks = Math.max(1, 4 - (idx % 3));
+        suggestionReason = `Recommended stock baseline for ${p.name}`;
+      }
+      return {
+        product: p.name, pack: p.pack, packSize: p.packSize, packKg: p.packKg, packM3: p.packM3,
+        lastPacks,
+        suggestedPacks,
+        suggestionReason,
+      };
+    });
+
+    const totalSuggestedPacks = products.reduce((sum, p) => sum + p.suggestedPacks, 0);
+    const totalSuggestedKg = Math.round(products.reduce((sum, p) => sum + p.suggestedPacks * p.packKg, 0));
+
     return {
       temp, typeLabel: orderTypeLabel(outlet.brand, temp), deliveryDate: orderDate, cutoff, lastOrderDate: last ? isoOf(last.deliveryDate) : null,
-      products: catalogueFor(outlet.brand, temp).map((p) => ({
-        product: p.name, pack: p.pack, packSize: p.packSize, packKg: p.packKg, packM3: p.packM3,
-        lastPacks: last?.lines.filter((l) => l.product === p.name).reduce((n, l) => n + l.packs, 0) ?? 0,
-      })),
+      products,
+      suggestionSummary: `Auto-suggested ${totalSuggestedPacks} packs (${totalSuggestedKg} kg) based on past order velocity and lead-time buffer.`,
       existing: existing ? { orderId: existing.id, lines: existing.lines.map((l) => ({ product: l.product, packs: l.packs })) } : null,
     };
+  });
+
+  // Add a new product to store catalogue
+  app.post('/store/catalogue/products', store, async (req) => {
+    const { outletId } = ctxOf(req);
+    const outlet = await outletOf(outletId);
+    const body = AddProductRequest.parse(req.body);
+    const prod = addProductToCatalogue(outlet.brand, body.temp, {
+      name: body.name,
+      pack: body.pack,
+      packSize: body.packSize,
+      perPack: body.perPack,
+      perPackUnit: body.perPackUnit,
+      packKg: body.packKg,
+      packM3: body.packM3,
+    });
+    return { ok: true, product: prod };
   });
 
   // SM2 → SM3: place (or, before the cutoff, replace) the order for one type

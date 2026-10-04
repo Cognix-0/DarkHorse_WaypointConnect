@@ -113,6 +113,20 @@ export function goodsLinesFor(key: string, brand: Brand, temp: Temp, units: numb
 /** What a store orders from, by brand and temperature (Style and Tech are ambient only). */
 export const catalogueFor = (brand: Brand, temp: Temp): Product[] => CATALOGUE[`${brand}|${brand === 'Fresh' ? temp : 'ambient'}`] ?? [];
 
+export function addProductToCatalogue(brand: Brand, temp: Temp, product: Product): Product {
+  const key = `${brand}|${brand === 'Fresh' ? temp : 'ambient'}`;
+  if (!CATALOGUE[key]) {
+    CATALOGUE[key] = [];
+  }
+  const idx = CATALOGUE[key]!.findIndex((p) => p.name.toLowerCase() === product.name.toLowerCase());
+  if (idx >= 0) {
+    CATALOGUE[key]![idx] = product;
+  } else {
+    CATALOGUE[key]!.push(product);
+  }
+  return product;
+}
+
 /** "Dry groceries", "Chilled", "Apparel", "Electronics" */
 export const orderTypeLabel = (brand: Brand, temp: Temp) => (brand === 'Fresh' ? (temp === 'chilled' ? 'Chilled' : 'Dry groceries') : brand === 'Style' ? 'Apparel' : 'Electronics');
 
