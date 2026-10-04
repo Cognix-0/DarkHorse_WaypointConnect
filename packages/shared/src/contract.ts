@@ -28,6 +28,19 @@ export const SessionUser = z.object({
   vehicleId: z.string().nullable(),
 });
 export const LoginResponse = z.object({ token: z.string(), user: SessionUser });
+export const ForgotPasswordRequest = z.object({
+  email: z.string().min(1, 'Enter your email or employee ID'),
+  issue: z.string().min(3, 'Describe your issue or reason for password reset'),
+});
+export const SupportRequestDto = z.object({
+  id: z.string(),
+  email: z.string(),
+  issue: z.string(),
+  status: z.enum(['pending', 'resolved']),
+  createdAt: z.string(),
+});
+export type TForgotPasswordRequest = z.infer<typeof ForgotPasswordRequest>;
+export type TSupportRequestDto = z.infer<typeof SupportRequestDto>;
 
 // ---------- reference data ----------
 export const OutletDto = z.object({
