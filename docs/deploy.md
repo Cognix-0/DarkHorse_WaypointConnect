@@ -62,9 +62,9 @@ Set at least:
 | `DOMAIN` | `waypoint.example.com` (no `https://`) |
 | `DB_PASSWORD` | a random string (`openssl rand -hex 16`) |
 | `JWT_SECRET` | a long random string (`openssl rand -hex 32`) |
-| `DEMO_PASSWORD` | the password the judges will use for all four accounts, e.g. `waypoint-demo` (put the same value in the README and the submission form) |
+| `ACCOUNT_SECRET` | a long random string (`openssl rand -hex 32`). Every account's password is derived from it; list them with `docker compose exec api pnpm -s credentials > credentials.csv` and keep that file private |
 
-Leave `DEMO_MODE=1` and the `DEMO_*_CLOCK` values as they are so the walkthrough looks the same at any hour.
+Leave `DEMO_DATE` and the `DEMO_*_CLOCK` values empty: every screen then shows today and the real Asia/Colombo time.
 
 ## 5. Start it
 
@@ -78,7 +78,7 @@ Caddy gets a Let's Encrypt certificate on the first request to `https://<DOMAIN>
 ## 6. Check before submitting
 
 - [ ] `https://<DOMAIN>` shows a padlock (no certificate warning).
-- [ ] All four accounts sign in: `dispatcher@`, `loader@`, `driver@`, `store@waypoint.demo`.
+- [ ] The walkthrough accounts sign in with their passwords from `credentials.csv`: `dispatcher.peliyagoda@`, `loader1.peliyagoda@`, `veh024@`, `out026@waypoint.lk`.
 - [ ] Dispatcher → Order Queue shows 85 orders; Planning Board says *All booklet rules pass*.
 - [ ] On a phone: driver app → *Add to Home Screen*, airplane mode, reopen: it still loads.
 - [ ] Run the README judge walkthrough once end to end, then reset (below) so judges start clean.
@@ -139,7 +139,7 @@ For day-to-day coding, everyone should still run their own local copy (`docker c
 
 | Symptom | Cause and fix |
 | --- | --- |
-| "Wrong email or password" | `DEMO_PASSWORD` in `.env` is the password, literally (if it says `CHANGE_ME`, the password is `CHANGE_ME`). After changing it: `docker compose up -d api` (the seed updates the accounts). |
+| "Wrong email or password" | Each account has its own password: look it up with `docker compose exec api pnpm -s credentials`. Changing `ACCOUNT_SECRET` (or `JWT_SECRET` when it is empty) changes every password after `docker compose up -d api`. |
 | Certificate error / Caddy log says "challenge failed" | DNS does not point at this server yet, or ports 80/443 are closed in the provider firewall. Fix, then `docker compose restart caddy`. |
 | Build stops with "killed" | Out of memory: add swap (step 1). |
 | New screens missing after `git pull` | Rebuild: `docker compose up -d --build`. On phones, close and reopen the app once so the service worker picks up the new version. |

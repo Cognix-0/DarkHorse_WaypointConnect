@@ -10,7 +10,7 @@ import {
 } from '@waypoint/shared/contract';
 import { requireRole } from '../auth.ts';
 import { prisma } from '../db.ts';
-import { addDays, atColombo, baseContext, calendar, clockOf, dbDate, DEMO_DATE, isoOf, nextOperatingDay, shortDate, storeNow } from '../reference.ts';
+import { addDays, atColombo, baseContext, calendar, clockOf, dbDate, today as workingDay, isoOf, nextOperatingDay, shortDate, storeNow } from '../reference.ts';
 import { HttpError } from '../plans.ts';
 import { alertDispatcher, emit, notifyStore } from '../events.ts';
 import { displayRef } from '../day.ts';
@@ -34,7 +34,7 @@ function ctxOf(req: FastifyRequest) {
   const outletId = req.user.outletId;
   if (!outletId) throw new HttpError(400, 'This account is not linked to a store.');
   const q = req.query as { date?: string };
-  const today = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : DEMO_DATE;
+  const today = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : workingDay();
   const now = storeNow();
   const forDate = nextOperatingDay(today);
   const minutesLeft = toMin(CUTOFF) - toMin(now);

@@ -14,6 +14,7 @@
     "typecheck": "pnpm -r typecheck",
     "db:migrate": "prisma migrate dev --schema prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
+    "credentials": "tsx scripts/credentials.ts",
     "check:2b": "tsx scripts/run-task2b.ts && python3 check_allocation.py out/submission_task2b.csv"
   },
   "devDependencies": {

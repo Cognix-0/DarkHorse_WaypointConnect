@@ -13,6 +13,7 @@ COPY prisma prisma
 COPY data data
 COPY packages/shared packages/shared
 COPY apps/api apps/api
+COPY scripts/credentials.ts scripts/credentials.ts
 RUN pnpm prisma generate
 EXPOSE 3000
 # Schema sync + idempotent seed on every start, then the API.

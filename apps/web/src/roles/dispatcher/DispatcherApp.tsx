@@ -75,9 +75,12 @@ function Sidebar({ synced }: { synced: string | null }) {
         </span>
       </div>
 
-      {/* Depot Switcher */}
+      {/* Depot: fixed for a depot's own dispatcher account, switchable only for an account without a depot */}
       <div className="bg-white/10 rounded-xl p-2 flex flex-col gap-1.5 shrink-0 lg:mb-3">
-        <span className="text-[10px] font-bold text-nav-muted uppercase tracking-wider px-0.5">Active Depot</span>
+        <span className="text-[10px] font-bold text-nav-muted uppercase tracking-wider px-0.5">{s?.user.depot ? 'Your Depot' : 'Active Depot'}</span>
+        {s?.user.depot ? (
+          <span className="h-7 rounded-md text-xs font-bold flex items-center justify-center bg-primary text-white">{depot}</span>
+        ) : (
         <div className="grid grid-cols-2 gap-1 bg-black/20 p-1 rounded-lg">
           <button
             type="button"
@@ -100,6 +103,7 @@ function Sidebar({ synced }: { synced: string | null }) {
             Kandy
           </button>
         </div>
+        )}
       </div>
 
       <nav aria-label="Dispatcher" className="flex lg:grid gap-1 lg:gap-2">

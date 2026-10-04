@@ -7,3 +7,4 @@ out/
 coverage/
 android-build/
 *.keystore
+credentials*.csv

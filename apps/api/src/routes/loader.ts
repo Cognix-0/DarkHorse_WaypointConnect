@@ -7,14 +7,14 @@ import {
 } from '@waypoint/shared/contract';
 import { requireRole } from '../auth.ts';
 import { prisma } from '../db.ts';
-import { calendar, clockOf, DEMO_DATE, dbDate, loaderNow, nextOperatingDay, shortDate } from '../reference.ts';
+import { calendar, clockOf, today, dbDate, loaderNow, nextOperatingDay, shortDate } from '../reference.ts';
 import { HttpError, copyLines } from '../plans.ts';
 import { alertDispatcher, emit, notifyStore } from '../events.ts';
 import { kindOf, opsPlan, PROBLEM_LABEL, refOf, sealByOf, versionsFor, type OpsPlan, type OpsTrip } from '../ops.ts';
 
 const dayOf = (req: FastifyRequest) => {
   const q = req.query as { date?: string };
-  return { date: q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : DEMO_DATE, depot: (req.user.depot ?? 'Peliyagoda') as Depot };
+  return { date: q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : today(), depot: (req.user.depot ?? 'Peliyagoda') as Depot };
 };
 
 const lineDone = (l: { loadedAt: Date | null; shortPacks: number; packs: number }) => !!l.loadedAt || l.shortPacks >= l.packs;

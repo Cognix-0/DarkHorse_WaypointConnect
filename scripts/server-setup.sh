@@ -3,7 +3,7 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/Cognix-0/DarkHorse_WaypointConnect/main/scripts/server-setup.sh | bash
 #
-# Optional, before "bash":  DOMAIN=waypoint.example.com  DEMO_PASSWORD=...
+# Optional, before "bash":  DOMAIN=waypoint.example.com
 # Without DOMAIN it uses <ip-with-dashes>.sslip.io, which points at this server with no DNS setup.
 # Safe to run again: it pulls the latest code and rebuilds, keeping .env and the database.
 set -euo pipefail
@@ -35,12 +35,8 @@ if [ ! -f .env ]; then
 DOMAIN=$DOMAIN
 DB_PASSWORD=$(openssl rand -hex 16)
 JWT_SECRET=$(openssl rand -hex 32)
-DEMO_PASSWORD=${DEMO_PASSWORD:-waypoint-demo}
-DEMO_DATE=2026-03-25
+ACCOUNT_SECRET=$(openssl rand -hex 32)
 DEMO_MODE=1
-DEMO_CLOCK=06:42
-DEMO_LOADER_CLOCK=02:40
-DEMO_STORE_CLOCK=14:18
 EOF
 fi
 DOMAIN=$(grep '^DOMAIN=' .env | cut -d= -f2)
@@ -51,7 +47,8 @@ docker compose up -d --build
 say "Waiting for https://$DOMAIN"
 for i in $(seq 1 60); do
   if curl -fsS "https://$DOMAIN/api/health" >/dev/null 2>&1; then
-    say "Live: https://$DOMAIN   (password for the demo accounts: $(grep '^DEMO_PASSWORD=' .env | cut -d= -f2))"
+    docker compose exec -T api pnpm -s credentials > credentials.csv && chmod 600 credentials.csv
+    say "Live: https://$DOMAIN   (every account and its password: $DIR/credentials.csv)"
     exit 0
   fi
   sleep 5

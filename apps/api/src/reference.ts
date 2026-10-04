@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { contextFromRows, parseCsv, type PlanningContext } from '@waypoint/shared';
+import { demoDate } from '../../../prisma/demo-day.ts';
 
 const DATA = fileURLToPath(new URL('../../../data/', import.meta.url));
 const csv = (f: string) => parseCsv(readFileSync(DATA + f, 'utf8'));
@@ -26,7 +27,8 @@ export const calendar = new Map<string, CalendarDay>(
   }]),
 );
 
-export const DEMO_DATE = process.env.DEMO_DATE ?? '2026-03-25';
+/** The working day every screen shows: today in Colombo (or DEMO_DATE when pinned). Read per request, so it rolls over at midnight. */
+export const today = (): string => demoDate();
 
 export const addDays = (iso: string, n: number) => {
   const d = new Date(`${iso}T00:00:00.000Z`);
@@ -63,10 +65,11 @@ export const cutoffFor = (deliveryIso: string) => new Date(`${addDays(deliveryIs
 export const shortDate = (iso: string) =>
   new Date(`${iso}T00:00:00.000Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).replace(',', '');
 
-/** Clock for the live screen. DEMO_CLOCK pins it (e.g. 06:42) so the walkthrough looks the same at any hour. */
+const realClock = () => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Colombo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+
+/** Clock for the live screen: real Colombo time. DEMO_CLOCK pins it (e.g. 06:42) to rehearse the walkthrough. */
 export function colomboNow(): string {
-  if (process.env.DEMO_CLOCK) return process.env.DEMO_CLOCK;
-  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Colombo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+  return process.env.DEMO_CLOCK || realClock();
 }
 
 const FESTIVAL_NAMES: Record<string, string> = { new_year: 'Sinhala & Tamil New Year', vesak: 'Vesak', christmas: 'Christmas', deepavali: 'Deepavali', poson: 'Poson', esala: 'Esala Perahera', thai_pongal: 'Thai Pongal' };
@@ -86,24 +89,19 @@ export function festivalFor(iso: string): string | null {
 }
 
 /**
- * Screen clocks. In demo mode each role's story happens at its own time of night, so the walkthrough reads
- * naturally whatever the real hour: loaders at 02:40 (DEMO_LOADER_CLOCK), dispatcher live view at 06:42 (DEMO_CLOCK).
- * Drivers always use their phone's real clock.
+ * Screen clocks. Every role runs on the same real Colombo time, so all screens agree (drivers use their phone,
+ * which shows the same time). DEMO_LOADER_CLOCK / DEMO_STORE_CLOCK pin one role's clock for rehearsals.
  */
 export function loaderNow(): string {
-  if (process.env.DEMO_LOADER_CLOCK) return process.env.DEMO_LOADER_CLOCK;
-  if (process.env.DEMO_MODE === '1') return '02:40';
-  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Colombo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+  return process.env.DEMO_LOADER_CLOCK || realClock();
 }
 
 /** HH:MM in Colombo for a timestamp. */
 export const clockOf = (d: Date) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Colombo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d);
 
-/** Store manager clock (16:00 cutoff countdown). Demo mode: 14:18, as in the Figma SM1 frame. */
+/** Store manager clock (16:00 cutoff countdown). */
 export function storeNow(): string {
-  if (process.env.DEMO_STORE_CLOCK) return process.env.DEMO_STORE_CLOCK;
-  if (process.env.DEMO_MODE === '1') return '14:18';
-  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Colombo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date());
+  return process.env.DEMO_STORE_CLOCK || realClock();
 }
 /** A timestamp for HH:MM Colombo time on a date. */
 export const atColombo = (iso: string, hhmm: string) => new Date(`${iso}T${hhmm}:00+05:30`);

@@ -3,7 +3,7 @@
 Delivery planning and tracking for Waypoint Group's three brands (Fresh, Style, Tech): one system for the **dispatcher**, the **loader**, the **driver** (works offline) and the **store manager**.
 Tech-Triathlon 2026 · Team Dark Horse.
 
-**Live demo:** https://3-106-77-179.sslip.io · Driver phone app: https://3-106-77-179.sslip.io/get-app (Android APK, or Add to Home Screen on iPhone) · Password for all four accounts: `waypoint-demo`
+**Live demo:** https://3-106-77-179.sslip.io · Driver phone app: https://3-106-77-179.sslip.io/get-app (Android APK, or Add to Home Screen on iPhone) · Accounts and passwords: see *Accounts* below
 
 ## Run it
 
@@ -17,18 +17,20 @@ docker compose up --build   # database + API (schema + seed) + web app + HTTPS
 
 Open https://localhost (accept the local certificate once). On a server, set `DOMAIN` in `.env` to your domain and Caddy gets a real certificate.
 
-### Demo accounts
+### Accounts
 
-| Role | Email | Linked to |
-| --- | --- | --- |
-| Dispatcher | dispatcher@waypoint.demo | Peliyagoda depot |
-| Loader | loader@waypoint.demo | Peliyagoda depot |
-| Driver | driver@waypoint.demo | VEH024 (dry truck) |
-| Store manager | store@waypoint.demo | OUT026, Waypoint Fresh, Gampaha |
+Everyone has their own account (188 in all). Drivers sign in as their **vehicle**: each vehicle has one assigned driver, and no driver is assigned to two vehicles.
 
-Password: the `DEMO_PASSWORD` value in `.env` (default `waypoint-demo`).
+| Role | Email | How many | Linked to |
+| --- | --- | --- | --- |
+| Dispatcher | `dispatcher.peliyagoda@waypoint.lk`, `dispatcher.kandy@waypoint.lk` | 1 per depot | their depot only |
+| Loader | `loader1.peliyagoda@waypoint.lk` … `loader3.kandy@waypoint.lk` | 3 per depot | their depot |
+| Driver (vehicle) | `veh001@waypoint.lk` … `veh060@waypoint.lk` | 1 per vehicle | the vehicle and its assigned driver |
+| Store manager | `out001@waypoint.lk` … `out120@waypoint.lk` | 1 per store | the store |
 
-The seed loads all 120 outlets and 60 vehicles from `data/`, plus one realistic delivery day, **Wed 25 Mar 2026 (payday)**: the 85 Peliyagoda orders and 10 workshop vehicles of the official peak-day scenario, where chilled demand is about 32.8 t against 3 refrigerated trucks and 1 refrigerated van.
+**Passwords are different for every account** and are never stored in plain text: each is derived from `ACCOUNT_SECRET` in `.env`. Print the list with `pnpm credentials` (on the server: `docker compose exec api pnpm -s credentials > credentials.csv`). Never commit that file. Judges receive the passwords for the walkthrough accounts with the submission.
+
+**Every screen shows today** (Asia/Colombo date and time), so the dispatcher, loader, driver and store manager always agree. Each day is filled with the 85 Peliyagoda orders and 10 workshop vehicles of the official peak-day scenario (where chilled demand is about 32.8 t against 3 refrigerated trucks and 1 refrigerated van), built automatically shortly after midnight. Set `DEMO_DATE=YYYY-MM-DD` in `.env` to rehearse one fixed day instead.
 
 ## Develop
 
@@ -76,7 +78,7 @@ On the official peak day it serves **72 of 85 orders on 32 trips** and defers 13
 
 ## Dispatcher console (Part 2)
 
-Sign in as `dispatcher@waypoint.demo`. Screens match Figma frames D1–D6 (`docs/screens/` has a capture of each):
+Sign in as `dispatcher.peliyagoda@waypoint.lk`. Screens match Figma frames D1–D6 (`docs/screens/` has a capture of each):
 
 | Screen | What the dispatcher does | API |
 | --- | --- | --- |
@@ -89,13 +91,13 @@ Sign in as `dispatcher@waypoint.demo`. Screens match Figma frames D1–D6 (`docs
 
 Publishing refuses a plan that breaks a rule, leaves an order neither planned nor deferred, or skips a shop twice without confirmation. Re-publishing raises the plan version (drivers refetch on a new version).
 
-**Demo mode** (`DEMO_MODE=1`, `DEMO_CLOCK=06:42` in `.env`): Live Tracking has **Simulate morning**, which plays driver deliveries up to the clock so the walkthrough shows a live morning (one trip late, one offline) before the driver app exists. Real progress comes from the driver app's offline sync in Part 3.
+**Demo mode** (`DEMO_MODE=1`): Live Tracking has **Simulate morning**, which plays driver deliveries up to the current time so the walkthrough shows a live morning (one trip late, one offline) before the driver app exists. Real progress comes from the driver app's offline sync in Part 3.
 
 **Timetable:** stop order is earliest-closing window first; ETAs use the booklet trip-time formula, so each trip's ETAs add up to its planned minutes. Fresh trips run inside 03:30–08:00 and a vehicle's second trip starts when the first ends (the planning standard does not count the return leg).
 
 ## Loader and driver (Part 3)
 
-**Loader** (`loader@waypoint.demo`, dock tablet 1280 × 800, Figma L1–L5)
+**Loader** (`loader1.peliyagoda@waypoint.lk`, dock tablet 1280 × 800, Figma L1–L5)
 
 | Screen | What the loader does | API |
 | --- | --- | --- |
@@ -107,7 +109,7 @@ Publishing refuses a plan that breaks a rule, leaves an order neither planned no
 
 Goods: the competition data gives each order a unit count and a weight. `packages/shared/src/goods.ts` breaks every order into 2–4 product lines from a fixed catalogue (milk crates, chicken packs, rice bags, apparel cartons, boxed TVs…). The packs always add up to the order's units, so loader, driver and store count the same thing.
 
-**Driver** (`driver@waypoint.demo`, phone 390 × 844, Figma M1–M8; vehicle VEH024, dry truck)
+**Driver** (`veh024@waypoint.lk`, driver Nimal Fernando, phone 390 × 844, Figma M1–M8; vehicle VEH024, dry truck)
 
 | Screen | What the driver does |
 | --- | --- |
@@ -129,7 +131,7 @@ A sealed or departed trip is locked: the Planning Board, defer and auto-allocate
 
 ## Store manager (Part 4)
 
-**Store manager** (`store@waypoint.demo`, Nimali Perera, OUT026 Waypoint Fresh Gampaha; phone SM1–SM9 and desktop D-SM1–D-SM9 from the same screens). Captures: `docs/screens/d-sm*.png` and `sm*-phone.png`.
+**Store manager** (`out026@waypoint.lk`, Nimali Perera, OUT026 Waypoint Fresh Gampaha; phone SM1–SM9 and desktop D-SM1–D-SM9 from the same screens). Captures: `docs/screens/d-sm*.png` and `sm*-phone.png`.
 
 | Screen | What the store manager does | API |
 | --- | --- | --- |
@@ -145,26 +147,26 @@ Store orders are built from the same goods catalogue as the loader's list (`pack
 
 ## Judge walkthrough
 
-About 15 minutes. Use a laptop for the dispatcher and loader, and a phone (or Chrome DevTools device mode) for the driver and store manager. Password for every account: `DEMO_PASSWORD` in `.env` (default `waypoint-demo`).
+About 15 minutes. Use a laptop for the dispatcher and loader, and a phone (or Chrome DevTools device mode) for the driver and store manager. Passwords: see *Accounts* above.
 
-The demo day is **Wed 25 Mar 2026, a payday**: 85 Peliyagoda orders, 10 vehicles in the workshop, chilled demand 32.8 t against 17 t of reefer space. In demo mode each role's clock is set to its part of the night: loaders 02:40, store manager 14:18 (before the 16:00 cutoff), Live Tracking 06:42. Real actions (ticks, deliveries) show the real time.
+The working day is **today** (Asia/Colombo): 85 Peliyagoda orders from the official peak-day scenario, 10 vehicles in the workshop, chilled demand 32.8 t against 17 t of reefer space. Every screen runs on the real time, so all four roles agree. To rehearse at a set hour, pin `DEMO_DATE` and the `DEMO_*_CLOCK` values in `.env`.
 
-**1. Dispatcher plans the day** (`dispatcher@waypoint.demo`)
+**1. Dispatcher plans the day** (`dispatcher.peliyagoda@waypoint.lk`)
 1. **Overview**: 85 orders, reefer space at 193 %, "Needs your attention".
 2. **Order Queue**: shops skipped on the last run are red at the top; 3 orders after the 16:00 cutoff are greyed and moved to Thursday. Click **Auto-allocate & open board**.
 3. **Planning Board**: "All booklet rules pass", 75 of 85 orders on 34 trips. Choose *All available*, drag a stop marked *chilled* onto a **Dry truck** → **Drop blocked**: "… can't carry chilled goods", with the vehicles that would take it.
 4. **Deferrals**: *Payday overload*, 10 orders deferred, each with its reason and *unavoidable*. Recovery options are re-planned by the engine (B and C serve 5 more orders). Click **Confirm & publish plan**. Every affected store is told.
 
-**2. Store manager sees it** (`store@waypoint.demo`, phone)
+**2. Store manager sees it** (`out026@waypoint.lk`, phone)
 5. **Today**: dry groceries *Scheduled*, chilled *Deferred to Thu 26 Mar*. Tap **See why and what to do** → the reason in plain words → **Accept Thu 26 Mar delivery**.
 6. **Place tomorrow's order** → *Copy last order* → change a few packs → **Submit**. (Until 16:00 it can be edited.)
 
-**3. Loader loads** (`loader@waypoint.demo`, laptop or tablet)
+**3. Loader loads** (`loader1.peliyagoda@waypoint.lk`, laptop or tablet)
 7. **Choose vehicle** → **VEH024 trip 1** (Kurunegala) → tick every line → **Seal & release** (type any seal number).
 8. **VEH024 trip 2** (Gampaha, OUT026) → on the first line press **!** → *Damaged goods*, 2 packs, *Load the rest, send the missing packs tomorrow* → **Send report**. Tick the rest → **Seal & release**: the 2 packs become an order on Thursday's run.
 9. Dispatcher → **Live Tracking**: a *Loader flag* alert has appeared.
 
-**4. Driver delivers, partly offline** (`driver@waypoint.demo`, phone, VEH024)
+**4. Driver delivers, partly offline** (`veh024@waypoint.lk`, phone)
 10. **Review load & start Trip 1** → **Confirm load & depart** → **I've arrived** → **Start unloading** → photo, signature → **Confirm delivery**.
 11. Turn the signal off (airplane mode, or DevTools → Network → *Offline*). Reload the page: the app still opens. Deliver the next stop, or report a problem. The **Sync** tab shows what is waiting.
 12. Turn the signal back on: **Back online** lists what was sent (and any plan change made meanwhile).

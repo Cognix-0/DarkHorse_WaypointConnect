@@ -5,15 +5,16 @@ import type {
   TBoardResponse, TCheckPlacementResponse, TDeferralReviewResponse, TDeferralReason, TForecastResponse, TLiveResponse,
   TOrderQueueResponse, TOverviewResponse, TPlanDto,
 } from '@waypoint/shared/contract';
-import { api } from '../../api';
+import { api, getSession } from '../../api';
 
 export type Depot = 'Peliyagoda' | 'Kandy';
 
 let currentDepot: Depot = (localStorage.getItem('waypoint_dispatcher_depot') as Depot) || 'Peliyagoda';
 const depotListeners = new Set<(depot: Depot) => void>();
 
+/** A dispatcher account belongs to one depot; the saved choice only applies to an account without one. */
 export function getDispatcherDepot(): Depot {
-  return currentDepot;
+  return getSession()?.user.depot ?? currentDepot;
 }
 
 export function setDispatcherDepot(depot: Depot) {
@@ -23,7 +24,7 @@ export function setDispatcherDepot(depot: Depot) {
 }
 
 export function useDispatcherDepot(): [Depot, (depot: Depot) => void] {
-  const [depot, setDepot] = useState<Depot>(currentDepot);
+  const [depot, setDepot] = useState<Depot>(getDispatcherDepot());
   useEffect(() => {
     const handler = (d: Depot) => setDepot(d);
     depotListeners.add(handler);

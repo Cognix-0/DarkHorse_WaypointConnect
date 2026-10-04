@@ -55,10 +55,18 @@ const FLOW_STEPS = [
   { label: 'Deliver', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg> },
 ];
 
+/** Example sign-in per role: every person has their own account (drivers sign in as their vehicle). */
+const EXAMPLE_EMAIL: Record<Role, string> = {
+  dispatcher: 'dispatcher.peliyagoda@waypoint.lk',
+  loader: 'loader1.peliyagoda@waypoint.lk',
+  driver: 'veh024@waypoint.lk',
+  store: 'out026@waypoint.lk',
+};
+
 export function Login() {
   const nav = useNavigate();
   const [role, setRole] = useState<Role>('dispatcher');
-  const [email, setEmail] = useState('dispatcher@waypoint.demo');
+  const [email, setEmail] = useState(EXAMPLE_EMAIL.dispatcher);
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [keepSigned, setKeepSigned] = useState(true);
@@ -67,7 +75,7 @@ export function Login() {
 
   function selectRole(r: Role) {
     setRole(r);
-    setEmail(`${r}@waypoint.demo`);
+    setEmail(EXAMPLE_EMAIL[r]);
     setError(null);
   }
 
