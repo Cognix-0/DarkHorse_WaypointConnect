@@ -3,6 +3,8 @@
 Delivery planning and tracking for Waypoint Group's three brands (Fresh, Style, Tech): one system for the **dispatcher**, the **loader**, the **driver** (works offline) and the **store manager**.
 Tech-Triathlon 2026 · Team Dark Horse.
 
+**Live demo:** https://3-106-77-179.sslip.io · Driver phone app: https://3-106-77-179.sslip.io/get-app (Android APK, or Add to Home Screen on iPhone) · Password for all four accounts: `waypoint-demo`
+
 ## Run it
 
 Deploying to a public server: see [`docs/deploy.md`](docs/deploy.md). Video plan: [`docs/video-script.md`](docs/video-script.md). Phone app (install or Android APK): [`docs/mobile.md`](docs/mobile.md).

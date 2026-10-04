@@ -1,0 +1,4 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": { "namespace": "android_app", "package_name": "lk.darkhorse.waypointconnect", "sha256_cert_fingerprints": ["A8:91:2B:A6:A7:A4:FE:8B:3D:4D:34:69:68:C5:82:37:B1:58:06:DF:63:51:4C:D3:1C:3D:0C:66:7C:9D:76:22"] }
+}]
