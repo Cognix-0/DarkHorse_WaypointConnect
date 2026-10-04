@@ -2,6 +2,8 @@
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import type { TDriverRouteResponse, TDriverTripDto, TStopDto } from '@waypoint/shared/contract';
+import { setSession } from '../../api';
+import { Icon } from '../../ui/Icon';
 import { cx } from '../../ui/format';
 import { clock, minutesSince, useDriver } from './store';
 
@@ -34,7 +36,25 @@ function Header() {
         <span className="text-[11px] text-drv-sub truncate">Driver · {r?.vehicleId ?? '—'} · {r?.driverName ?? ''}</span>
       </div>
       <SyncPill />
+      <SignOut />
     </header>
+  );
+}
+
+/** Small sign-out icon in the header. Updates not sent yet stay on the phone and go out after the next sign-in. */
+function SignOut() {
+  const d = useDriver();
+  function signOut() {
+    const waiting = d.queue.length;
+    if (waiting && !window.confirm(`${waiting} update${waiting > 1 ? 's are' : ' is'} not sent yet. They stay on this phone and are sent after you sign in again. Sign out?`)) return;
+    setSession(null);
+    window.location.assign('/login');
+  }
+  return (
+    <button type="button" onClick={signOut} title="Sign out" aria-label="Sign out"
+      className="shrink-0 -mr-2 grid place-items-center h-10 w-10 rounded-full text-drv-sub hover:text-white hover:bg-white/10">
+      <Icon name="logout" size={20} />
+    </button>
   );
 }
 

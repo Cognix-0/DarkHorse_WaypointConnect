@@ -256,11 +256,24 @@ export function Login() {
 
             </form>
 
+            {/* Driver app: the mobile app is for drivers only */}
+            <Link
+              to="/get-app"
+              className="flex items-center gap-3 rounded-xl border border-primary-line bg-primary-tint px-4 py-3 hover:bg-primary-soft transition-colors"
+            >
+              <span className="grid place-items-center h-10 w-10 shrink-0 rounded-lg bg-primary text-white" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" /></svg>
+              </span>
+              <span className="grid leading-tight">
+                <span className="text-sm font-semibold text-ink">Driver? Get the mobile app</span>
+                <span className="text-xs text-ink-3">Waypoint Driver for Android · <strong className="text-primary">for drivers only</strong></span>
+              </span>
+              <span className="ml-auto text-primary text-lg" aria-hidden="true">→</span>
+            </Link>
+
             {/* Footer */}
             <p className="text-center text-xs text-ink-4">
-              Authorised Waypoint staff only · Need access?{' '}
-              <Link to="/get-app" className="text-primary hover:underline">Get the mobile app</Link>
-              {' '}or contact your depot supervisor.
+              Authorised Waypoint staff only · Need access? Contact your depot supervisor.
             </p>
           </div>
         </div>
