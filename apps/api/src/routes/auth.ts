@@ -9,38 +9,18 @@ export async function authRoutes(app: FastifyInstance) {
     const body = LoginRequest.safeParse(req.body);
     if (!body.success) return reply.code(400).send({ error: 'Enter an email and password.' });
 
-    let emailInput = body.data.email.toLowerCase().trim();
+    // Short names for the walkthrough accounts. They still need that account's own password.
+    const ALIASES: Record<string, string> = {
+      'loader@waypoint.lk': 'loader1.peliyagoda@waypoint.lk',
+      'driver@waypoint.lk': 'veh024@waypoint.lk',
+      'store@waypoint.lk': 'out026@waypoint.lk',
+    };
+    const typed = body.data.email.toLowerCase().trim();
+    const email = ALIASES[typed] ?? typed;
 
-    // Support common email alias shortcuts
-    if (emailInput === 'dispatcher@waypoint.lk') emailInput = 'dispatcher.peliyagoda@waypoint.lk';
-    if (emailInput === 'loader@waypoint.lk') emailInput = 'loader1.peliyagoda@waypoint.lk';
-    if (emailInput === 'driver@waypoint.lk') emailInput = 'veh024@waypoint.lk';
-    if (emailInput === 'store@waypoint.lk') emailInput = 'out026@waypoint.lk';
-
-    let user = await prisma.user.findUnique({ where: { email: emailInput } });
-
-    // Fallback: search by prefix or role if exact match is not found
-    if (!user) {
-      if (emailInput.startsWith('dispatcher')) {
-        user = await prisma.user.findFirst({ where: { role: 'dispatcher' } });
-      } else if (emailInput.startsWith('loader')) {
-        user = await prisma.user.findFirst({ where: { role: 'loader' } });
-      } else if (emailInput.startsWith('driver') || emailInput.startsWith('veh')) {
-        user = await prisma.user.findFirst({ where: { role: 'driver' } });
-      } else if (emailInput.startsWith('store') || emailInput.startsWith('out')) {
-        user = await prisma.user.findFirst({ where: { role: 'store' } });
-      } else if (emailInput.startsWith('admin')) {
-        user = await prisma.user.findFirst({ where: { role: 'admin' } });
-      }
-    }
-
-    if (!user) return reply.code(401).send({ error: 'Email or password is wrong.' });
-
-    // In demo environment, accept demo passwords or non-empty passwords alongside bcrypt check
-    const isDemoPw = body.data.password === 'waypoint-demo' || body.data.password === 'waypoint' || body.data.password === 'demo' || body.data.password.trim().length > 0;
-    const valid = isDemoPw || (await bcrypt.compare(body.data.password, user.passwordHash));
-
-    if (!valid) {
+    // Exactly that account, and its own password: no fallback to another account, no shared or demo password.
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !(await bcrypt.compare(body.data.password, user.passwordHash))) {
       return reply.code(401).send({ error: 'Email or password is wrong.' });
     }
 
