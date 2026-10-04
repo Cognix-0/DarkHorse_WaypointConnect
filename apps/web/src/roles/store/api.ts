@@ -19,6 +19,8 @@ function useWrite<A = void, R = unknown>(fn: (a: A) => Promise<R>) {
   return useMutation({ mutationFn: fn, onSettled: () => qc.invalidateQueries({ queryKey: ['store'] }) });
 }
 export const usePlaceOrder = () => useWrite((a: { temp: string; lines: { product: string; packs: number }[]; note?: string }) => api<TStoreOrderDetail>('/store/orders', post(a)));
+export const useAddProduct = () => useWrite((a: { temp: string; name: string; pack: string; packSize: string; perPack: number; perPackUnit: string; packKg: number; packM3: number }) =>
+  api<{ ok: boolean }>('/store/catalogue/products', post(a)));
 export const useConfirmReceipt = () => useWrite((a: { orderId: string; lines: { lineId: string; received: number; status: 'ok' | 'short' | 'damaged' }[]; note?: string }) =>
   api<TStoreOrderDetail>(`/store/orders/${a.orderId}/receipt`, post({ lines: a.lines, note: a.note })));
 export const useDeferralResponse = () => useWrite((a: { orderId: string; action: 'accept' | 'cancel' }) => api<TStoreOrderDetail>(`/store/orders/${a.orderId}/deferral`, post({ action: a.action })));

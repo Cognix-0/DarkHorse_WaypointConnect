@@ -416,13 +416,29 @@ export const CatalogueProductDto = z.object({
   product: z.string(), pack: z.string(), packSize: z.string(), packKg: z.number(), packM3: z.number(),
   /** packs on this outlet's previous order of the same type */
   lastPacks: z.number().int(),
+  /** auto-suggested quantity based on demand trends */
+  suggestedPacks: z.number().int(),
+  suggestionReason: z.string().optional(),
 });
 export const StoreCatalogueResponse = z.object({
   temp: Temp, typeLabel: z.string(), deliveryDate: IsoDate, cutoff: CutoffDto, lastOrderDate: IsoDate.nullable(),
   products: z.array(CatalogueProductDto),
+  suggestionSummary: z.string().optional(),
   /** the order already placed for that day and type, if any (edit it instead of placing another) */
   existing: z.object({ orderId: z.string(), lines: z.array(z.object({ product: z.string(), packs: z.number().int() })) }).nullable(),
 });
+export const AddProductRequest = z.object({
+  temp: Temp,
+  name: z.string().trim().min(2, 'Enter product name').max(80),
+  pack: z.string().trim().min(1, 'Enter pack type (e.g. cartons, crates, bags)').max(40),
+  packSize: z.string().trim().min(1, 'Enter pack size description').max(40),
+  perPack: z.number().min(1, 'Quantity per pack must be at least 1'),
+  perPackUnit: z.string().trim().min(1, 'Enter per pack unit').max(20),
+  packKg: z.number().min(0.01, 'Weight per pack must be greater than 0'),
+  packM3: z.number().min(0.0001, 'Volume per pack must be greater than 0'),
+});
+export type TAddProductRequest = z.infer<typeof AddProductRequest>;
+
 export const StoreOrderRequest = z.object({
   temp: Temp,
   lines: z.array(z.object({ product: z.string(), packs: z.number().int().min(0).max(999) })).min(1),
