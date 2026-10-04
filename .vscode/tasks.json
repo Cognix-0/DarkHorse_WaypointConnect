@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "shell",
+      "command": "pnpm dev:api",
+      "problemMatcher": [],
+      "label": "Start API Server",
+      "isBackground": true
+    },
+    {
+      "type": "shell",
+      "command": "pnpm dev:web",
+      "problemMatcher": [],
+      "label": "Start Web Frontend",
+      "isBackground": true
+    },
+    {
+      "type": "shell",
+      "command": "docker compose up -d db",
+      "problemMatcher": [],
+      "label": "Start Postgres DB (Docker)"
+    },
+    {
+      "type": "shell",
+      "command": "docker compose up --build",
+      "problemMatcher": [],
+      "label": "Docker Compose Full Stack"
+    }
+  ]
+}
