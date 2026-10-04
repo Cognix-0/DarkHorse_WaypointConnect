@@ -41,4 +41,38 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   app.get('/auth/me', { preHandler: requireRole() }, async (req) => req.user);
+
+  app.post('/auth/forgot-password', async (req, reply) => {
+    const { email, issue } = req.body as { email?: string; issue?: string };
+    if (!email || !issue || issue.trim().length < 3) {
+      return reply.code(400).send({ error: 'Please provide your email/employee ID and describe your issue.' });
+    }
+
+    const item = {
+      id: `SUP-${Date.now()}`,
+      email: email.trim(),
+      issue: issue.trim(),
+      status: 'pending' as const,
+      createdAt: new Date().toISOString(),
+    };
+
+    supportRequests.unshift(item);
+    return { ok: true, message: 'Message sent to Admin dashboard.' };
+  });
 }
+
+export const supportRequests: Array<{
+  id: string;
+  email: string;
+  issue: string;
+  status: 'pending' | 'resolved';
+  createdAt: string;
+}> = [
+  {
+    id: 'SUP-101',
+    email: 'driver.peliyagoda@waypoint.lk',
+    issue: 'Forgot my driver login password after phone reset. Please reset access.',
+    status: 'pending',
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+  },
+];
