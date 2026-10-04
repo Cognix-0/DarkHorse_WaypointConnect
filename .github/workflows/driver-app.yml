@@ -1,0 +1,62 @@
+# Builds the native Android driver app (Capacitor) from apps/driver-app. See apps/driver-app/README.md.
+name: Driver app (Android)
+on:
+  push:
+    branches: [driver-app]
+    paths: ['apps/driver-app/**', '.github/workflows/driver-app.yml']
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: Live site domain (no https://)
+        default: 3-106-77-179.sslip.io
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/driver-app
+    env:
+      DOMAIN: ${{ inputs.domain || '3-106-77-179.sslip.io' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      - name: Check the live site answers
+        run: curl -fsS "https://$DOMAIN/api/health"
+
+      - name: Create the Android project
+        run: |
+          sed -i "s/DOMAIN/$DOMAIN/g" capacitor.config.json
+          npm install --no-audit --no-fund
+          npx cap add android
+          # Camera for proof-of-delivery photos
+          sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA" />\n    <application#' android/app/src/main/AndroidManifest.xml
+          grep -n "CAMERA\|INTERNET" android/app/src/main/AndroidManifest.xml
+
+      - name: App icon
+        run: |
+          command -v convert >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick >/dev/null; }
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            dir=android/app/src/main/res/mipmap-${d%%:*}; size=${d##*:}
+            convert icon.png -resize ${size}x${size} $dir/ic_launcher.png
+            cp $dir/ic_launcher.png $dir/ic_launcher_round.png
+            convert icon.png -resize ${size}x${size} $dir/ic_launcher_foreground.png
+          done
+
+      - name: Build the APK
+        run: |
+          npx cap sync android
+          cd android && ./gradlew assembleDebug --no-daemon -q
+          cp app/build/outputs/apk/debug/app-debug.apk ../waypoint-driver.apk
+          ls -l ../waypoint-driver.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: waypoint-driver-android
+          path: apps/driver-app/waypoint-driver.apk

@@ -1,0 +1,14 @@
+{
+  "appId": "lk.darkhorse.waypointdriver",
+  "appName": "Waypoint Driver",
+  "webDir": "www",
+  "server": {
+    "url": "https://DOMAIN/driver",
+    "allowNavigation": ["DOMAIN"],
+    "errorPath": "offline.html"
+  },
+  "android": {
+    "appendUserAgent": "WaypointDriverApp",
+    "allowMixedContent": false
+  }
+}
