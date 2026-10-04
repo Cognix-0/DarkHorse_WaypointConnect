@@ -227,7 +227,7 @@ export function Login() {
                   onClick={() => setForgotModal(true)}
                   className="text-sm font-semibold text-primary hover:text-primary-hover transition"
                 >
-                  Forgot password?
+                  Support
                 </button>
               </div>
 
@@ -311,7 +311,7 @@ function ForgotPasswordModal({ initialEmail, onClose }: { initialEmail: string; 
   }
 
   return (
-    <Modal title="Forgot Password / Support Request" onClose={onClose}>
+    <Modal title="Support Request" onClose={onClose}>
       {done ? (
         <div className="space-y-4 py-2">
           <div className="p-3 bg-ok-soft text-ok border border-ok/30 rounded-xl text-sm font-medium">
