@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { PrismaClient, type Brand, type Depot, type DockType, type Parking, type VehicleTemp, type VehicleType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { parseCsv } from '../packages/shared/src/engine/reference.ts';
-import { allAccounts, driverRoster, EMAIL_DOMAIN, passwordFor, storeManager, DEMO_STORE } from './accounts.ts';
+import { allAccounts, driverRoster, EMAIL_DOMAIN, passwordFor, RETIRED_EMAILS, storeManager, DEMO_STORE } from './accounts.ts';
 import { addLines, buildDemoDay, demoDate } from './demo-day.ts';
 
 const prisma = new PrismaClient();
@@ -65,8 +65,9 @@ async function main() {
     if (existing) await prisma.user.update({ where: { email: a.email }, data: { ...a, name, ...(passwordHash ? { passwordHash } : {}) } });
     else await prisma.user.create({ data: { ...a, name, passwordHash: passwordHash! } });
   }
-  // The old shared logins (dispatcher@ / loader@ / driver@ / store@waypoint.demo). Accounts the admin created stay.
-  await prisma.user.deleteMany({ where: { email: { endsWith: '@waypoint.demo' } } });
+  // Logins from earlier versions: the shared @waypoint.demo ones and the per-depot dispatchers (now one dispatcher
+  // for both depots). Accounts the admin created stay.
+  await prisma.user.deleteMany({ where: { OR: [{ email: { endsWith: '@waypoint.demo' } }, { email: { in: RETIRED_EMAILS } }] } });
 
   // ---- today's delivery day
   const date = demoDate();

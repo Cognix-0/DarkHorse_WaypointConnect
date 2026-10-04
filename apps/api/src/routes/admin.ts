@@ -92,7 +92,8 @@ export async function adminRoutes(app: FastifyInstance) {
 
   app.post('/admin/accounts', admin, async (req): Promise<TAccountPasswordResponse> => {
     const body = CreateAccountRequest.parse(req.body);
-    if (body.role !== 'admin' && !body.depot) throw new HttpError(400, 'Choose the depot this person works at.');
+    // A loader works at one depot. A dispatcher may have one, or none (switches between both depots).
+    if (body.role === 'loader' && !body.depot) throw new HttpError(400, 'Choose the depot this loader works at.');
     if (await prisma.user.findUnique({ where: { email: body.email } })) throw new HttpError(409, `${body.email} already has an account.`);
     const password = randomPassword();
     const user = await prisma.user.create({

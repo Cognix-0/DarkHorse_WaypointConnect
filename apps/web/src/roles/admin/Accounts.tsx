@@ -87,7 +87,7 @@ export function Accounts() {
                   <td className="td font-semibold text-ink">{a.name}{a.id === me && <span className="text-ink-3 font-normal"> (you)</span>}</td>
                   <td className="td">{a.email}</td>
                   <td className="td"><Badge tone={ROLE[a.role].tone}>{ROLE[a.role].label}</Badge></td>
-                  <td className="td">{a.vehicleId ?? a.outletId ?? a.depot ?? <span className="text-ink-3">everything</span>}</td>
+                  <td className="td">{a.vehicleId ?? a.outletId ?? a.depot ?? <span className="text-ink-3">{a.role === 'dispatcher' ? 'Both depots' : 'everything'}</span>}</td>
                   <td className="td tabular text-ink-3">{lastSeen(a.lastLoginAt)}</td>
                   <td className="td">
                     <button role="switch" aria-checked={a.active} aria-label={`Access for ${a.email}`} disabled={setActive.isPending || a.id === me}
@@ -166,14 +166,18 @@ function CreateAccount({ onClose }: { onClose: () => void }) {
           <input className="input" type="email" value={form.email} onChange={(e) => set({ email: e.target.value })} placeholder="loader4.peliyagoda@waypoint.lk" required /></label>
         <div className="grid grid-cols-2 gap-3">
           <label className="grid gap-1"><span className="text-xs font-semibold text-ink">Role</span>
-            <select className="input" value={form.role} onChange={(e) => set({ role: e.target.value as TCreateAccountRequest['role'] })}>
+            <select className="input" value={form.role} onChange={(e) => {
+              const r = e.target.value as TCreateAccountRequest['role'];
+              set({ role: r, depot: r === 'loader' && !form.depot ? 'Peliyagoda' : form.depot });
+            }}>
               <option value="loader">Loader</option>
               <option value="dispatcher">Dispatcher</option>
               <option value="admin">Administrator</option>
             </select></label>
           <label className="grid gap-1"><span className="text-xs font-semibold text-ink">Depot</span>
-            <select className="input" value={form.role === 'admin' ? '' : form.depot ?? ''} disabled={form.role === 'admin'} onChange={(e) => set({ depot: e.target.value as 'Peliyagoda' | 'Kandy' })}>
-              {form.role === 'admin' && <option value="">All (admin)</option>}
+            <select className="input" value={form.role === 'admin' ? '' : form.depot ?? ''} disabled={form.role === 'admin'}
+              onChange={(e) => set({ depot: (e.target.value || null) as 'Peliyagoda' | 'Kandy' | null })}>
+              {form.role !== 'loader' && <option value="">{form.role === 'admin' ? 'All (admin)' : 'Both depots (can switch)'}</option>}
               <option value="Peliyagoda">Peliyagoda</option>
               <option value="Kandy">Kandy</option>
             </select></label>

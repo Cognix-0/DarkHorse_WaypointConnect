@@ -19,12 +19,12 @@ Open https://localhost (accept the local certificate once). On a server, set `DO
 
 ### Accounts
 
-Everyone has their own account (189 in all). Drivers sign in as their **vehicle**: each vehicle has one assigned driver, and no driver is assigned to two vehicles.
+Everyone has their own account (188 in all). Drivers sign in as their **vehicle**: each vehicle has one assigned driver, and no driver is assigned to two vehicles.
 
 | Role | Email | How many | Linked to |
 | --- | --- | --- | --- |
 | Administrator | `admin@waypoint.lk` | 1 (more can be added) | everything: accounts, drivers on vehicles, system |
-| Dispatcher | `dispatcher.peliyagoda@waypoint.lk`, `dispatcher.kandy@waypoint.lk` | 1 per depot | their depot only |
+| Dispatcher | `dispatcher@waypoint.lk` | 1 | both depots: switches between Peliyagoda and Kandy in the console |
 | Loader | `loader1.peliyagoda@waypoint.lk` … `loader3.kandy@waypoint.lk` | 3 per depot | their depot |
 | Driver (vehicle) | `veh001@waypoint.lk` … `veh060@waypoint.lk` | 1 per vehicle | the vehicle and its assigned driver |
 | Store manager | `out001@waypoint.lk` … `out120@waypoint.lk` | 1 per store | the store |
@@ -86,7 +86,7 @@ On the official peak day it serves **72 of 85 orders on 32 trips** and defers 13
 
 ## Dispatcher console (Part 2)
 
-Sign in as `dispatcher.peliyagoda@waypoint.lk`. Screens match Figma frames D1–D6 (`docs/screens/` has a capture of each):
+Sign in as `dispatcher@waypoint.lk`. Screens match Figma frames D1–D6 (`docs/screens/` has a capture of each):
 
 | Screen | What the dispatcher does | API |
 | --- | --- | --- |
@@ -159,7 +159,7 @@ About 15 minutes. Use a laptop for the dispatcher and loader, and a phone (or Ch
 
 The working day is **today** (Asia/Colombo): 85 Peliyagoda orders from the official peak-day scenario, 10 vehicles in the workshop, chilled demand 32.8 t against 17 t of reefer space. Every screen runs on the real time, so all four roles agree. To rehearse at a set hour, pin `DEMO_DATE` and the `DEMO_*_CLOCK` values in `.env`.
 
-**1. Dispatcher plans the day** (`dispatcher.peliyagoda@waypoint.lk`)
+**1. Dispatcher plans the day** (`dispatcher@waypoint.lk`)
 1. **Overview**: 85 orders, reefer space at 193 %, "Needs your attention".
 2. **Order Queue**: shops skipped on the last run are red at the top; 3 orders after the 16:00 cutoff are greyed and moved to Thursday. Click **Auto-allocate & open board**.
 3. **Planning Board**: "All booklet rules pass", 75 of 85 orders on 34 trips. Choose *All available*, drag a stop marked *chilled* onto a **Dry truck** → **Drop blocked**: "… can't carry chilled goods", with the vehicles that would take it.

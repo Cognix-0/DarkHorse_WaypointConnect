@@ -78,7 +78,7 @@ Caddy gets a Let's Encrypt certificate on the first request to `https://<DOMAIN>
 ## 6. Check before submitting
 
 - [ ] `https://<DOMAIN>` shows a padlock (no certificate warning).
-- [ ] The walkthrough accounts sign in with their passwords from `credentials.csv`: `dispatcher.peliyagoda@`, `loader1.peliyagoda@`, `veh024@`, `out026@waypoint.lk`.
+- [ ] The walkthrough accounts sign in with their passwords from `credentials.csv`: `dispatcher@`, `loader1.peliyagoda@`, `veh024@`, `out026@waypoint.lk`.
 - [ ] Dispatcher → Order Queue shows 85 orders; Planning Board says *All booklet rules pass*.
 - [ ] On a phone: driver app → *Add to Home Screen*, airplane mode, reopen: it still loads.
 - [ ] Run the README judge walkthrough once end to end, then reset (below) so judges start clean.
