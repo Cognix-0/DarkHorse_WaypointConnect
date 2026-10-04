@@ -15,4 +15,6 @@ RUN pnpm --filter @waypoint/web build
 FROM nginx:1.27-alpine
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
+# nginx runs as a non-root user: files copied from a 600-mode checkout (sw.js) would answer 403.
+RUN chmod -R a+rX /usr/share/nginx/html
 EXPOSE 80
