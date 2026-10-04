@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import bcrypt from 'bcryptjs';
 import type { Prisma } from '@prisma/client';
 import {
-  AssignDriverRequest, CreateAccountRequest, CreateDriverRequest, UpdateAccountRequest,
+  AssignDriverRequest, CreateAccountRequest, CreateDriverRequest, StartDemoRequest, UpdateAccountRequest, type TDemoStatusResponse,
   type TAccountPasswordResponse, type TAdminAccountDto, type TAdminAccountsResponse, type TAdminFleetResponse,
   type TAdminSystemResponse, type TDriverDto, type TRebuildDayResponse,
 } from '@waypoint/shared/contract';
@@ -13,6 +13,8 @@ import { HttpError } from '../plans.ts';
 import { colomboNow, dbDate, workingDay } from '../reference.ts';
 import { randomPassword } from '../../../../prisma/accounts.ts';
 import { buildDemoDay } from '../../../../prisma/demo-day.ts';
+import { DEMO_CLOCKS, DEMO_DAY, DEMO_STORE, demo, endDemo, resetDemoData, startDemo } from '../demo.ts';
+import { displayRef, tripState } from '../day.ts';
 
 const ROLES = ['admin', 'dispatcher', 'loader', 'driver', 'store'] as const;
 const startedAt = Date.now();
@@ -176,5 +178,77 @@ export async function adminRoutes(app: FastifyInstance) {
       await syncVehicleAccount(tx, id, driver.name);
     });
     return { ok: true };
+  });
+}
+
+// ---- demo mode
+export async function adminDemoRoutes(app: FastifyInstance) {
+  const admin = { preHandler: requireRole('admin') };
+
+  const status = async (): Promise<TDemoStatusResponse> => {
+    const running = demo();
+    const date = dbDate(DEMO_DAY);
+    const [plan, orders] = await Promise.all([
+      prisma.plan.findUnique({
+        where: { date_depot: { date, depot: 'Peliyagoda' } },
+        include: { trips: { include: { stops: { include: { events: { select: { type: true } } } } } }, deferrals: { include: { order: { select: { outletId: true, id: true, sourceRef: true, temp: true } } }, orderBy: { createdAt: 'asc' } } },
+      }),
+      prisma.order.findMany({ where: { deliveryDate: date, outletId: DEMO_STORE }, include: { stop: { include: { trip: true } } }, orderBy: { placedAt: 'asc' } }),
+    ]);
+    const deferredIds = new Set(plan?.deferrals.map((d) => d.orderId) ?? []);
+    // The story follows the store's live order to whichever vehicle the plan puts it on.
+    const live = orders.find((o) => !o.sourceRef);
+    const vehicleId = live?.stop?.trip.vehicleId ?? null;
+    const [vehicle, account] = vehicleId
+      ? await Promise.all([prisma.vehicle.findUnique({ where: { id: vehicleId } }), prisma.user.findFirst({ where: { vehicleId, role: 'driver' }, select: { email: true } })])
+      : [null, null];
+    const trips = (plan?.trips ?? []).filter((t) => t.vehicleId === vehicleId).sort((a, b) => a.tripNo - b.tripNo);
+    // A deferred store to show the deferral message and its answer (prefer chilled: the payday story).
+    const defs = (plan?.deferrals ?? []).filter((d) => d.order.outletId !== DEMO_STORE);
+    const pick = defs.find((d) => d.order.temp === 'chilled') ?? defs[0];
+    const pickAccount = pick ? await prisma.user.findFirst({ where: { outletId: pick.order.outletId, role: 'store' }, select: { email: true } }) : null;
+    // The store answers on its latest deferral record for that order.
+    const pickAnswer = pick ? (await prisma.deferral.findFirst({ where: { orderId: pick.orderId }, orderBy: { createdAt: 'desc' }, select: { storeResponse: true } }))?.storeResponse : null;
+    return {
+      active: !!running, date: DEMO_DAY, storeDate: running?.storeDate ?? DEMO_DAY, clocks: DEMO_CLOCKS,
+      startedAt: running?.startedAt ?? null, endsAt: running?.endsAt ?? null,
+      story: {
+        storeId: DEMO_STORE, planStatus: plan ? plan.status : 'none', planVersion: plan?.version ?? 0,
+        ordersOnRun: await prisma.order.count({ where: { deliveryDate: date, outlet: { depot: 'Peliyagoda' }, status: { not: 'cancelled' } } }),
+        deferred: deferredIds.size,
+        storeOrders: orders.map((o) => ({
+          ref: displayRef(o), temp: o.temp, status: o.status, placedLive: !o.sourceRef,
+          vehicleId: o.stop?.trip.vehicleId ?? null, tripNo: o.stop?.trip.tripNo ?? null, deferred: deferredIds.has(o.id) || o.status === 'deferred',
+        })),
+        vehicle: {
+          id: vehicleId, driverName: vehicle?.driverName ?? null, accountEmail: account?.email ?? null,
+          trips: trips.map((t) => {
+            const done = t.stops.filter((x) => x.events.some((e) => e.type === 'stop.delivered' || e.type === 'stop.failed')).length;
+            const state = tripState(t);
+            return { tripNo: t.tripNo, district: t.district, status: (state === 'departed' && t.stops.length && done === t.stops.length ? 'done' : state) as 'open' | 'loading' | 'sealed' | 'departed' | 'done', stops: t.stops.length, delivered: done };
+          }),
+        },
+        deferredStore: pick ? {
+          outletId: pick.order.outletId, ref: displayRef(pick.order), accountEmail: pickAccount?.email ?? null,
+          answer: (pickAnswer ?? 'waiting') as 'waiting' | 'accepted' | 'cancelled',
+        } : null,
+      },
+    };
+  };
+
+  app.get('/admin/demo', admin, status);
+  app.post('/admin/demo/start', admin, async (req) => {
+    const body = StartDemoRequest.parse(req.body);
+    await startDemo(body.hours, body.reset);
+    return status();
+  });
+  app.post('/admin/demo/reset', admin, async () => {
+    if (!demo()) throw new HttpError(400, 'Start demo mode first.');
+    await resetDemoData();
+    return status();
+  });
+  app.post('/admin/demo/end', admin, async () => {
+    await endDemo();
+    return status();
   });
 }

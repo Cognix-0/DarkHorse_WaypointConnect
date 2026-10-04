@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   TAccountPasswordResponse, TAdminAccountDto, TAdminAccountsResponse, TAdminFleetResponse, TAdminSystemResponse,
-  TCreateAccountRequest, TDriverDto, TRebuildDayResponse,
+  TCreateAccountRequest, TDemoStatusResponse, TDriverDto, TRebuildDayResponse,
 } from '@waypoint/shared/contract';
 import { api } from '../../api';
 
@@ -25,3 +25,9 @@ export const useCreateDriver = () => useWrite((a: { name: string; phone?: string
 export const useAssignDriver = () =>
   useWrite((a: { vehicleId: string; driverId: string | null; move?: boolean }) => api<{ ok: boolean }>(`/admin/vehicles/${a.vehicleId}/driver`, send('PUT', { driverId: a.driverId, move: a.move })));
 export const useRebuildToday = () => useWrite(() => api<TRebuildDayResponse>('/admin/system/rebuild-today', send('POST')));
+
+export const useDemo = () => useQuery({ queryKey: ['admin', 'demo'], queryFn: () => api<TDemoStatusResponse>('/admin/demo'), refetchInterval: 15_000 });
+/** Start (or extend), reset or end demo mode. Every screen of every role follows straight away (realtime refresh). */
+export const useDemoAction = () =>
+  useWrite((a: { action: 'start' | 'reset' | 'end'; hours: number; reset: boolean }) =>
+    api<TDemoStatusResponse>(`/admin/demo/${a.action}`, send('POST', a.action === 'start' ? { hours: a.hours, reset: a.reset } : {})));

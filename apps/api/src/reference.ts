@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { contextFromRows, parseCsv, type PlanningContext } from '@waypoint/shared';
 import { demoDate } from '../../../prisma/demo-day.ts';
+import { demo } from './demo.ts';
 
 const DATA = fileURLToPath(new URL('../../../data/', import.meta.url));
 const csv = (f: string) => parseCsv(readFileSync(DATA + f, 'utf8'));
@@ -69,7 +70,7 @@ const realClock = () => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Colom
 
 /** Clock for the live screen: real Colombo time. DEMO_CLOCK pins it (e.g. 06:42) to rehearse the walkthrough. */
 export function colomboNow(): string {
-  return process.env.DEMO_CLOCK || realClock();
+  return demo()?.clocks.dispatcher || process.env.DEMO_CLOCK || realClock();
 }
 
 const FESTIVAL_NAMES: Record<string, string> = { new_year: 'Sinhala & Tamil New Year', vesak: 'Vesak', christmas: 'Christmas', deepavali: 'Deepavali', poson: 'Poson', esala: 'Esala Perahera', thai_pongal: 'Thai Pongal' };
@@ -93,7 +94,7 @@ export function festivalFor(iso: string): string | null {
  * which shows the same time). DEMO_LOADER_CLOCK / DEMO_STORE_CLOCK pin one role's clock for rehearsals.
  */
 export function loaderNow(): string {
-  return process.env.DEMO_LOADER_CLOCK || realClock();
+  return demo()?.clocks.loader || process.env.DEMO_LOADER_CLOCK || realClock();
 }
 
 /** HH:MM in Colombo for a timestamp. */
@@ -105,6 +106,8 @@ export const clockOf = (d: Date) => new Intl.DateTimeFormat('en-GB', { timeZone:
  * are now locked, so the dispatcher plans and publishes it in the evening. Store managers keep the calendar day.
  */
 export function workingDay(): string {
+  const running = demo();
+  if (running) return running.date;
   const d = today();
   if (process.env.DEMO_DATE) return d;
   return colomboNow() >= ORDER_CUTOFF ? nextOperatingDay(d) : d;
@@ -113,7 +116,12 @@ export const ORDER_CUTOFF = '16:00';
 
 /** Store manager clock (16:00 cutoff countdown). */
 export function storeNow(): string {
-  return process.env.DEMO_STORE_CLOCK || realClock();
+  return demo()?.clocks.store || process.env.DEMO_STORE_CLOCK || realClock();
+}
+
+/** The store manager's calendar day (in demo mode: the afternoon before the demo run, when its orders are placed). */
+export function storeDay(): string {
+  return demo()?.storeDate ?? today();
 }
 /** A timestamp for HH:MM Colombo time on a date. */
 export const atColombo = (iso: string, hhmm: string) => new Date(`${iso}T${hhmm}:00+05:30`);

@@ -9,9 +9,10 @@ import { liveRoutes } from './routes/live.ts';
 import { loaderRoutes } from './routes/loader.ts';
 import { driverRoutes } from './routes/driver.ts';
 import { storeRoutes } from './routes/store.ts';
-import { adminRoutes } from './routes/admin.ts';
+import { adminDemoRoutes, adminRoutes } from './routes/admin.ts';
 import { realtimeRoutes } from './routes/realtime.ts';
 import { signalChange } from './events.ts';
+import { expireDemo, loadDemo } from './demo.ts';
 import { HttpError } from './plans.ts';
 import type { TChangeSignal } from '@waypoint/shared/contract';
 
@@ -48,9 +49,14 @@ const ensureDay = (date: string) => {
 };
 const ensureToday = async () => { await ensureDay(today()); await ensureDay(workingDay()); };
 
+// Demo mode survives a restart (Admin → Demo mode).
+await loadDemo();
+
 // Screens follow the run: at the 16:00 cutoff (and at midnight) every open screen moves on without a refresh.
+// A demo whose time is up switches itself off here too.
 let lastRun = `${today()}|${workingDay()}`;
-setInterval(() => {
+setInterval(async () => {
+  if (await expireDemo()) signalChange(null);
   const run = `${today()}|${workingDay()}`;
   if (run === lastRun) return;
   lastRun = run;
@@ -77,6 +83,7 @@ await app.register(async (api) => {
   await api.register(driverRoutes);
   await api.register(storeRoutes);
   await api.register(adminRoutes);
+  await api.register(adminDemoRoutes);
   await api.register(realtimeRoutes);
 }, { prefix: '/api' });
 

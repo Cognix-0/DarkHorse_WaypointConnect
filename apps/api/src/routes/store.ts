@@ -10,7 +10,7 @@ import {
 } from '@waypoint/shared/contract';
 import { requireRole } from '../auth.ts';
 import { prisma } from '../db.ts';
-import { addDays, atColombo, baseContext, calendar, clockOf, dbDate, today as workingDay, isoOf, nextOperatingDay, shortDate, storeNow } from '../reference.ts';
+import { addDays, atColombo, baseContext, calendar, clockOf, dbDate, storeDay, isoOf, nextOperatingDay, shortDate, storeNow } from '../reference.ts';
 import { HttpError } from '../plans.ts';
 import { alertDispatcher, emit, notifyStore } from '../events.ts';
 import { displayRef } from '../day.ts';
@@ -34,7 +34,7 @@ function ctxOf(req: FastifyRequest) {
   const outletId = req.user.outletId;
   if (!outletId) throw new HttpError(400, 'This account is not linked to a store.');
   const q = req.query as { date?: string };
-  const today = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : workingDay();
+  const today = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? q.date : storeDay();
   const now = storeNow();
   const forDate = nextOperatingDay(today);
   const minutesLeft = toMin(CUTOFF) - toMin(now);
@@ -355,8 +355,10 @@ export async function storeRoutes(app: FastifyInstance) {
       }
     }
     await prisma.deferral.update({ where: { id: d.id }, data: { storeResponse: action === 'accept' ? 'accepted' : 'cancelled', respondedAt: new Date() } });
+    // The answer belongs on the run the order was deferred from (the dispatcher's Live Tracking for that day).
+    const fromRun = d.planId ? (await prisma.plan.findUnique({ where: { id: d.planId }, select: { date: true } }))?.date : null;
     await alertDispatcher('info', `${o.outletId} ${action === 'accept' ? 'accepted' : 'cancelled'} its deferred ${o.temp} order`,
-      action === 'accept' ? `The store expects it on ${shortDate(isoOf(d.newDate))}.` : `Remove it from the ${shortDate(isoOf(d.newDate))} plan; the store no longer needs it.`, { date: today, outletId: o.outletId, orderId: origId });
+      action === 'accept' ? `The store expects it on ${shortDate(isoOf(d.newDate))}.` : `Remove it from the ${shortDate(isoOf(d.newDate))} plan; the store no longer needs it.`, { date: isoOf(fromRun ?? o.deliveryDate), outletId: o.outletId, orderId: origId });
     return detail(await findOrder(o.id, outletId), cutoff, today);
   });
 

@@ -35,12 +35,15 @@ export async function addLines(prisma: PrismaClient, order: { id: string; units:
   await prisma.orderLine.createMany({ data: lines.map((l) => ({ orderId: order.id, seq: l.seq, product: l.product, pack: l.pack, packSize: l.packSize, packs: l.packs, ordered: l.ordered, weightKg: l.weightKg })) });
 }
 
-/** Builds the scenario orders for one delivery day, once. Returns true when it created them. */
-export async function buildDemoDay(prisma: PrismaClient, iso: string): Promise<boolean> {
+/**
+ * Builds the scenario orders for one delivery day, once. Returns true when it created them.
+ * `leaveOut`: scenario rows (e.g. S1-027) not to create, so a store can place that order live in a demo.
+ */
+export async function buildDemoDay(prisma: PrismaClient, iso: string, leaveOut: string[] = []): Promise<boolean> {
   const demo = day(iso);
   // Only the scenario rows count: store orders or after-cutoff orders may already sit on this date.
   if ((await prisma.order.count({ where: { deliveryDate: demo, sourceRef: { startsWith: 'S1-' } } })) > 0) return false;
-  const scen = csv('task2b_peak_day_scenarios.csv').filter((r) => r.scenario === 'S1');
+  const scen = csv('task2b_peak_day_scenarios.csv').filter((r) => r.scenario === 'S1' && !leaveOut.includes(r.order_ref!));
   const placedAt = new Date(`${isoOf(day(iso, -1))}T09:30:00.000Z`); // 15:00 Colombo, before the cutoff
   for (const r of scen) {
     // An outlet with two orders (chilled + ambient) keeps its most recent delivery date.

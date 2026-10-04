@@ -537,6 +537,30 @@ export const AdminSystemResponse = z.object({
   })),
 });
 export const RebuildDayResponse = z.object({ date: IsoDate, created: z.boolean(), orders: z.number().int() });
+/** Demo mode (Admin → Demo mode): the whole system on the official peak day for a while, then back to real time. */
+export const StartDemoRequest = z.object({ hours: z.number().min(0.25).max(12), reset: z.boolean() });
+export const DemoStatusResponse = z.object({
+  active: z.boolean(), date: IsoDate, storeDate: IsoDate,
+  clocks: z.object({ dispatcher: HHMM, loader: HHMM, store: HHMM }),
+  startedAt: z.string().nullable(), endsAt: z.string().nullable(),
+  /** where the demo story stands, so the presenter knows the next step */
+  story: z.object({
+    storeId: z.string(), planStatus: z.enum(['none', 'draft', 'published']), planVersion: z.number().int(),
+    ordersOnRun: z.number().int(), deferred: z.number().int(),
+    storeOrders: z.array(z.object({
+      ref: z.string(), temp: Temp, status: OrderStatus, placedLive: z.boolean(),
+      vehicleId: z.string().nullable(), tripNo: z.number().int().nullable(), deferred: z.boolean(),
+    })),
+    /** the vehicle carrying the store's live order (null until it is planned) */
+    vehicle: z.object({
+      id: z.string().nullable(), driverName: z.string().nullable(), accountEmail: z.string().nullable(),
+      trips: z.array(z.object({ tripNo: z.number().int(), district: z.string(), status: z.enum(['open', 'loading', 'sealed', 'departed', 'done']), stops: z.number().int(), delivered: z.number().int() })),
+    }),
+    /** a store whose order was deferred, to show how a deferral reaches the store and how it answers */
+    deferredStore: z.object({ outletId: z.string(), ref: z.string(), accountEmail: z.string().nullable(), answer: z.enum(['waiting', 'accepted', 'cancelled']) }).nullable(),
+  }),
+});
+export type TDemoStatusResponse = z.infer<typeof DemoStatusResponse>;
 export type TAdminAccountDto = z.infer<typeof AdminAccountDto>;
 export type TAdminAccountsResponse = z.infer<typeof AdminAccountsResponse>;
 export type TCreateAccountRequest = z.infer<typeof CreateAccountRequest>;
