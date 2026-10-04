@@ -6,9 +6,9 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-waypoint}
       POSTGRES_DB: waypoint
     volumes: [pgdata:/var/lib/postgresql/data]
-    # Reachable only from this machine (never the internet). 5433, not 5432, so it never clashes with a
-    # PostgreSQL already installed on a laptop. Teammates reach the server's copy through SSH (docs/deploy.md).
-    ports: ["127.0.0.1:${DB_HOST_PORT:-5433}:5432"]
+    # Reachable only from this machine (never the internet). 15432, an unusual port, so it does not clash with another
+    # PostgreSQL on a laptop (5432, 5433 and 54322 are often taken). Teammates reach the server's copy through SSH (docs/deploy.md).
+    ports: ["127.0.0.1:${DB_HOST_PORT:-15432}:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d waypoint"]
       interval: 3s
@@ -22,9 +22,9 @@ services:
       DEMO_PASSWORD: ${DEMO_PASSWORD:-waypoint-demo}
       DEMO_DATE: ${DEMO_DATE:-2026-03-25}
       DEMO_MODE: ${DEMO_MODE:-1}
-      DEMO_CLOCK: ${DEMO_CLOCK:-06:42}
-      DEMO_LOADER_CLOCK: ${DEMO_LOADER_CLOCK:-02:40}
-      DEMO_STORE_CLOCK: ${DEMO_STORE_CLOCK:-14:18}
+      DEMO_CLOCK: ${DEMO_CLOCK-06:42}
+      DEMO_LOADER_CLOCK: ${DEMO_LOADER_CLOCK-02:40}
+      DEMO_STORE_CLOCK: ${DEMO_STORE_CLOCK-14:18}
       API_PORT: 3000
     depends_on:
       db: { condition: service_healthy }

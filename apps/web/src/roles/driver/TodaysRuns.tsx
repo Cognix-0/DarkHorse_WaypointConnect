@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { TDriverTripDto } from '@waypoint/shared/contract';
 import { shortDate } from '../../ui/format';
 import { useDriver } from './store';
+import { BiometricSetting } from './BiometricLock';
 import { activeTrip, BigButton, Card, Chip, Notice, Screen, Stat, tempLabel } from './ui';
 
 const STATUS: Record<TDriverTripDto['status'], [string, 'green' | 'grey' | 'amber' | 'blue']> = {
@@ -102,6 +103,7 @@ export function TodaysRuns() {
         </div>
         <p className="text-[12px] text-drv-muted mt-2">This plan uses about {r.fuel.planL} L</p>
       </Card>
+      <BiometricSetting />
     </Screen>
   );
 }

@@ -10,10 +10,13 @@ import { StopArrival } from './StopArrival';
 import { ProofOfDelivery } from './ProofOfDelivery';
 import { ReportProblem } from './ReportProblem';
 import { SyncScreen } from './SyncScreen';
+import { BiometricGate } from './BiometricLock';
 
 export function DriverApp() {
   return (
     <DriverStore>
+      {/* Fingerprint lock (if the driver turned it on). The store above keeps syncing while it is shown. */}
+      <BiometricGate>
       <Routes>
         <Route index element={<TodaysRuns />} />
         <Route path="load/:tripId" element={<LoadCheck />} />
@@ -27,6 +30,7 @@ export function DriverApp() {
         <Route path="*" element={<Navigate to="/driver" replace />} />
       </Routes>
       <BackOnline />
+      </BiometricGate>
     </DriverStore>
   );
 }

@@ -1,0 +1,82 @@
+# Builds the Android app (APK for direct download, AAB for Google Play) from the live site.
+# Run it from GitHub: Actions → "Android app" → Run workflow → enter the site's domain. See docs/mobile.md.
+name: Android app
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: Domain of the live site, without https:// (e.g. 143-198-1-2.sslip.io)
+        required: true
+      version_code:
+        description: Version number. Increase it for every new release (1, 2, 3…)
+        required: true
+        default: '1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Same key every time = phones can update the app and assetlinks.json stays valid. See docs/mobile.md.
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'waypoint-temporary-key' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      - name: Check the site is live
+        run: curl -fsS "https://${{ inputs.domain }}/manifest.webmanifest" > /dev/null
+
+      - name: Install Bubblewrap
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/android-build"
+          npm install -g @bubblewrap/cli@1
+          mkdir -p ~/.bubblewrap
+          echo "{\"jdkPath\":\"$JAVA_HOME\",\"androidSdkPath\":\"$ANDROID_HOME\"}" > ~/.bubblewrap/config.json
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Signing key
+        working-directory: android-build
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > android.keystore
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret: using a one-off key. Phones cannot update to a later build signed with a different key, so add the secret before handing the app out (docs/mobile.md)."
+            keytool -genkeypair -keystore android.keystore -alias android -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$KEYSTORE_PASSWORD" -keypass "$KEYSTORE_PASSWORD" -dname "CN=Waypoint Connect, O=Team Dark Horse, C=LK"
+          fi
+
+      - name: Generate and build
+        working-directory: android-build
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ env.KEYSTORE_PASSWORD }}
+        run: |
+          node ../scripts/twa-manifest.mjs "${{ inputs.domain }}" "${{ inputs.version_code }}" > twa-manifest.json
+          bubblewrap update --skipVersionUpgrade
+          bubblewrap build --skipPwaValidation
+          mv app-release-signed.apk waypoint-connect.apk
+          mv app-release-bundle.aab waypoint-connect.aab
+
+      - name: Digital Asset Links file
+        working-directory: android-build
+        run: |
+          SHA=$(keytool -list -v -keystore android.keystore -alias android -storepass "$KEYSTORE_PASSWORD" | awk '/SHA256:/{print $2; exit}')
+          cat > assetlinks.json <<EOF
+          [{
+            "relation": ["delegate_permission/common.handle_all_urls"],
+            "target": { "namespace": "android_app", "package_name": "lk.darkhorse.waypointconnect", "sha256_cert_fingerprints": ["$SHA"] }
+          }]
+          EOF
+          cat assetlinks.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: waypoint-connect-android-${{ inputs.version_code }}
+          path: |
+            android-build/waypoint-connect.apk
+            android-build/waypoint-connect.aab
+            android-build/assetlinks.json
