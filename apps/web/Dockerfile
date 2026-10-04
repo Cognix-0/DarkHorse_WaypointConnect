@@ -4,12 +4,9 @@ RUN corepack enable
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml tsconfig.base.json ./
 COPY pnpm-lock.yaml* ./
-COPY packages/shared/package.json packages/shared/
-COPY apps/api/package.json apps/api/
-COPY apps/web/package.json apps/web/
-RUN pnpm install --no-frozen-lockfile
 COPY packages/shared packages/shared
 COPY apps/web apps/web
+RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @waypoint/web build
 
 FROM nginx:1.27-alpine
