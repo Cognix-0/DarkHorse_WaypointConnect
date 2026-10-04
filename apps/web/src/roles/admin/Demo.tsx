@@ -142,7 +142,6 @@ export function Demo() {
         <h2 id="tips-h" className="text-[15px] font-semibold text-ink">Tips</h2>
         <p>Use a separate browser window (or a private window) for each account, so all of them stay signed in side by side.</p>
         <p>Messages: stores are told about deferrals, deliveries and problems automatically; on Live Tracking the dispatcher answers alerts (Notify store, Reply to store, Move to next run).</p>
-        <p><em>Simulate morning</em> on Live Tracking plays deliveries for every truck, including the demo truck: use it only after the driver part.</p>
         <p>Passwords: each account's own password (Accounts, or the credentials list).</p>
       </section>
     </>
