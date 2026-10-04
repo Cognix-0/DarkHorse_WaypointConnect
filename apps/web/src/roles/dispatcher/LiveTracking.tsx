@@ -10,7 +10,7 @@ import { Progress } from '../../ui/Meter';
 import { Empty, ErrorBox, Loading } from '../../ui/States';
 import { useToast } from '../../ui/Toast';
 import { cx, shortDate } from '../../ui/format';
-import { useAlertAction, useLive, useSimulate } from './api';
+import { useAlertAction, useLive } from './api';
 import { PageHeader } from './PageHeader';
 
 const STATUS: Record<TLiveRowDto['status'], { label: string; tone: Tone; bar: 'ok' | 'warn' | 'bad' | 'offline' | 'neutral' }> = {
@@ -37,7 +37,6 @@ const ALERT: Record<TLiveAlertDto['kind'], { label: string; card: string; tone: 
 export function LiveTracking() {
   const q = useLive();
   const act = useAlertAction();
-  const sim = useSimulate();
   const toast = useToast();
   const [pod, setPod] = useState<TPod | null>(null);
   if (q.isLoading) return <Loading />;
@@ -45,12 +44,6 @@ export function LiveTracking() {
   const d = q.data;
   const open = d.alerts.filter((a) => !a.done && a.actions.length > 0);
 
-  async function simulate() {
-    try {
-      const r = await sim.mutateAsync();
-      toast({ tone: 'ok', title: `Demo: ${r.delivered} deliveries played up to ${d.now}` });
-    } catch (e) { toast({ tone: 'bad', title: 'Simulation not available', body: (e as Error).message }); }
-  }
   async function doAction(a: TLiveAlertDto, action: string, label: string) {
     if (action === 'view_pod') {
       try { setPod(await api<TPod>(`/live/pod/${a.stopId}`)); } catch (e) { toast({ tone: 'bad', title: 'No proof of delivery', body: (e as Error).message }); }
@@ -73,7 +66,6 @@ export function LiveTracking() {
             <span className="h-6 px-2 rounded-md bg-offline text-white text-xs font-semibold grid place-items-center">Offline {d.counts.offline}</span>
           </div>
         )}
-        {d.published && <button className="btn-secondary btn-sm" disabled={sim.isPending} onClick={simulate} title="Demo mode only">Simulate morning</button>}
       </PageHeader>
 
       {!d.published ? (
