@@ -9,3 +9,6 @@ Build: GitHub Actions → "Driver app (Android)" (or push to the `driver-app` br
 `waypoint-driver.apk`; install it on the phone (allow installing from this source once).
 
 Package id `lk.darkhorse.waypointdriver`. Camera permission is requested for proof-of-delivery photos.
+Fingerprint unlock uses the phone's native prompt (`@capgo/capacitor-native-biometric`, called from
+`apps/web/src/roles/driver/biometric.ts` through the Capacitor bridge), because Android's WebView has no WebAuthn.
+Adding a native plugin means drivers install the new APK once.

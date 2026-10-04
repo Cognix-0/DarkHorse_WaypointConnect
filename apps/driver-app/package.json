@@ -5,7 +5,8 @@
   "description": "Waypoint Driver: native Android app (Capacitor) for drivers. Built by .github/workflows/driver-app.yml",
   "dependencies": {
     "@capacitor/android": "^7.0.0",
-    "@capacitor/core": "^7.0.0"
+    "@capacitor/core": "^7.0.0",
+    "@capgo/capacitor-native-biometric": "^7.6.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.0.0"

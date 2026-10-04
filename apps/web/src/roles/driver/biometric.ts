@@ -1,6 +1,8 @@
-// Fingerprint / Face ID unlock for the driver app, using the phone's own screen lock through WebAuthn
-// (the same standard as passkeys). Works in Chrome on Android (also inside the installed Android app),
-// in Safari and the home-screen app on iPhone, and with no signal.
+// Fingerprint / Face ID unlock for the driver app, using the phone's own screen lock.
+// - In the Waypoint Driver Android app (Capacitor): the phone's native fingerprint prompt, through the
+//   NativeBiometric plugin (apps/driver-app). Android's built-in WebView has no WebAuthn, so this is the only way.
+// - In a browser (Chrome on Android, Safari / home-screen app on iPhone): WebAuthn, the same standard as passkeys.
+// Both work with no signal.
 //
 // What it is: an app lock. The driver signs in with the password once; after that the phone asks for the
 // fingerprint each time the app is opened (or comes back after 5 minutes in the background). The fingerprint
@@ -20,8 +22,20 @@ const challenge = () => crypto.getRandomValues(new Uint8Array(32));
 
 const read = (): Saved | null => { try { return JSON.parse(localStorage.getItem(KEY) ?? 'null'); } catch { return null; } };
 
-/** Does this phone have a fingerprint / face sensor the browser can use? */
+/** The native bridge, only inside the Waypoint Driver Android app. */
+type NativeBridge = { isNativePlatform?: () => boolean; nativePromise?: <T>(plugin: string, method: string, options?: object) => Promise<T> };
+function nativeApp(): Required<NativeBridge> | null {
+  const cap = (window as unknown as { Capacitor?: NativeBridge }).Capacitor;
+  return cap?.isNativePlatform?.() && cap.nativePromise ? (cap as Required<NativeBridge>) : null;
+}
+const PROMPT = { title: 'Waypoint Driver', subtitle: 'Unlock with your fingerprint', reason: 'Unlock the driver app', negativeButtonText: 'Cancel', useFallback: true };
+
+/** Does this phone have a fingerprint / face sensor the app can use? */
 export async function biometricSupported(): Promise<boolean> {
+  const app = nativeApp();
+  if (app) {
+    try { return (await app.nativePromise<{ isAvailable: boolean }>('NativeBiometric', 'isAvailable', { useFallback: true })).isAvailable; } catch { return false; }
+  }
   try {
     return !!window.PublicKeyCredential && window.isSecureContext && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
   } catch { return false; }
@@ -32,6 +46,14 @@ export const biometricEnabled = (userId: string) => read()?.userId === userId;
 
 /** Ask for the fingerprint once and remember this phone's key for the driver. */
 export async function enableBiometric(user: { id: string; name: string }): Promise<void> {
+  const app = nativeApp();
+  if (app) {
+    // Native: the phone's own prompt proves the owner is here; nothing to store but the choice.
+    await app.nativePromise('NativeBiometric', 'verifyIdentity', { ...PROMPT, subtitle: 'Turn on fingerprint unlock' });
+    localStorage.setItem(KEY, JSON.stringify({ userId: user.id, credentialId: 'native' } satisfies Saved));
+    markUnlocked();
+    return;
+  }
   const cred = await navigator.credentials.create({
     publicKey: {
       challenge: challenge(),
@@ -57,6 +79,12 @@ export function disableBiometric() {
 export async function verifyBiometric(): Promise<boolean> {
   const saved = read();
   if (!saved) return false;
+  const app = nativeApp();
+  if (app) {
+    await app.nativePromise('NativeBiometric', 'verifyIdentity', PROMPT); // rejects if cancelled or not recognised
+    markUnlocked();
+    return true;
+  }
   const a = await navigator.credentials.get({
     publicKey: {
       challenge: challenge(),
@@ -80,6 +108,12 @@ export const lockNow = () => sessionStorage.removeItem(UNLOCKED);
 /** Plain words for the errors browsers give. */
 export function biometricError(e: unknown): string {
   const name = (e as { name?: string })?.name;
+  const message = String((e as Error)?.message ?? '');
+  if (nativeApp()) {
+    if (/cancel/i.test(message)) return 'Cancelled. Try again.';
+    if (/lock/i.test(message)) return 'Too many tries. Unlock the phone with its PIN, then try again.';
+    return 'Not recognised. Try again.';
+  }
   if (name === 'NotAllowedError') return 'Cancelled or not recognised. Try again.';
   if (name === 'InvalidStateError') return 'This phone is already set up. Turn fingerprint off and on again.';
   if (name === 'SecurityError') return 'Fingerprint needs the secure (https) address of the app.';

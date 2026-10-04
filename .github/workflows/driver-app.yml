@@ -34,9 +34,9 @@ jobs:
           sed -i "s/DOMAIN/$DOMAIN/g" capacitor.config.json
           npm install --no-audit --no-fund
           npx cap add android
-          # Camera for proof-of-delivery photos
-          sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA" />\n    <application#' android/app/src/main/AndroidManifest.xml
-          grep -n "CAMERA\|INTERNET" android/app/src/main/AndroidManifest.xml
+          # Camera for proof-of-delivery photos; fingerprint for the app lock (NativeBiometric plugin)
+          sed -i 's#<application#<uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.USE_BIOMETRIC" />\n    <application#' android/app/src/main/AndroidManifest.xml
+          grep -n "CAMERA\|BIOMETRIC\|INTERNET" android/app/src/main/AndroidManifest.xml
 
       - name: App icon
         run: |
@@ -52,6 +52,7 @@ jobs:
       - name: Build the APK
         run: |
           npx cap sync android
+          grep -rn "NativeBiometric\|native-biometric" android/capacitor.settings.gradle android/app/capacitor.build.gradle
           cd android && ./gradlew assembleDebug --no-daemon -q
           cp app/build/outputs/apk/debug/app-debug.apk ../waypoint-driver.apk
           ls -l ../waypoint-driver.apk
